@@ -2241,16 +2241,90 @@ function AdminOrders() {
   );
 }
 
-// ============ ROUTER ============
+// ============ ROUTER (URL-based) ============
+// Maps route IDs to URL paths and back. Single source of truth.
+const ROUTES = {
+  'landing':         { path: '/' },
+  'buyer-signup':    { path: '/signup' },
+  'buyer-login':     { path: '/login' },
+  'buyer-onboard':   { path: '/onboarding' },
+  'buyer-shop':      { path: '/shop' },
+  'buyer-product':   { path: '/product/:id', pattern: /^\/product\/([^/]+)$/ },
+  'buyer-cart':      { path: '/cart' },
+  'buyer-orders':    { path: '/orders' },
+  'vendor-login':    { path: '/vendor/login' },
+  'vendor-apply':    { path: '/vendor/apply' },
+  'vendor-applied':  { path: '/vendor/applied' },
+  'vendor-pending':  { path: '/vendor/pending' },
+  'vendor-dashboard':{ path: '/vendor/dashboard' },
+  'admin-login':     { path: '/admin/login' },
+  'admin-dashboard': { path: '/admin' },
+};
+
+// Convert URL path → route + param
+function parseUrl(pathname) {
+  // Normalise trailing slash (except root)
+  const path = pathname !== '/' && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  // Try exact match first
+  for (const [routeId, cfg] of Object.entries(ROUTES)) {
+    if (cfg.path === path) return { route: routeId, param: null };
+  }
+  // Try pattern match (for product/:id)
+  for (const [routeId, cfg] of Object.entries(ROUTES)) {
+    if (cfg.pattern) {
+      const m = path.match(cfg.pattern);
+      if (m) return { route: routeId, param: m[1] };
+    }
+  }
+  // Default: landing for unknown
+  return { route: 'landing', param: null };
+}
+
+// Convert route + param → URL path
+function buildUrl(route, param) {
+  const cfg = ROUTES[route];
+  if (!cfg) return '/';
+  if (cfg.pattern && param) return cfg.path.replace(':id', param);
+  return cfg.path;
+}
+
 function Router() {
   const { state, actions, addToast } = useApp();
-  const [route, setRoute] = useState('landing');
-  const [routeParam, setRouteParam] = useState(null);
+  const [{ route, routeParam }, setLocation] = useState(() => {
+    // Handle GitHub Pages 404 SPA redirect on first load
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get('_redirect');
+    if (redirect) {
+      window.history.replaceState({}, '', redirect);
+      const parsed = parseUrl(redirect);
+      return { route: parsed.route, routeParam: parsed.param };
+    }
+    const parsed = parseUrl(window.location.pathname);
+    return { route: parsed.route, routeParam: parsed.param };
+  });
 
-  const nav = (r, param) => { setRoute(r); setRouteParam(param); window.scrollTo(0, 0); };
+  // Listen to browser back/forward
+  useEffect(() => {
+    const onPopState = () => {
+      const parsed = parseUrl(window.location.pathname);
+      setLocation({ route: parsed.route, routeParam: parsed.param });
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Navigation function — pushes URL and updates state
+  const nav = (r, param) => {
+    const url = buildUrl(r, param);
+    if (window.location.pathname !== url) {
+      window.history.pushState({}, '', url);
+    }
+    setLocation({ route: r, routeParam: param });
+    window.scrollTo(0, 0);
+  };
 
   const needsTopBar = !['landing','buyer-signup','buyer-login','vendor-login','vendor-apply','vendor-applied','vendor-pending','admin-login','buyer-onboard'].includes(route);
-
   const logout = () => { actions.logout(); addToast('Logged out', 'info'); nav('landing'); };
 
   return (

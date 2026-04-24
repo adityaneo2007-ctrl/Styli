@@ -6,8 +6,3 @@ node_modules/
 .env.local
 .vercel
 *.log
-
-# Upload / packaging leftovers (not part of the app)
-stylifile.zip
-stylifile_extracted/
-*.zip
