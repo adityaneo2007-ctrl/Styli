@@ -1,0 +1,13 @@
+.DS_Store
+.vscode/
+.idea/
+node_modules/
+.env
+.env.local
+.vercel
+*.log
+
+# Upload / packaging leftovers (not part of the app)
+stylifile.zip
+stylifile_extracted/
+*.zip
