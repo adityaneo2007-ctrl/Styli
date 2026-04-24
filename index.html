@@ -174,6 +174,48 @@ html, body {
 .buyer-page {
   max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px;
 }
+/* Buyer console: sidebar + main content layout */
+.buyer-console { display: flex; min-height: calc(100vh - 40px); background: var(--bg); }
+.buyer-console .console-sidebar { background: var(--panel); }
+.buyer-console .console-main { padding: 0; }
+.buyer-console .buyer-page { padding: 28px 36px 80px; max-width: none; }
+.buyer-console .buyer-hero { padding: 24px 0 40px; margin-bottom: 32px; }
+.buyer-console .buyer-hero-headline { font-size: 44px; }
+
+/* Wishlist heart button overlaid on product cards */
+.wish-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: rgba(255, 255, 255, 0.92); color: var(--muted);
+  font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s, background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.wish-btn:hover { transform: scale(1.08); background: #fff; color: var(--rose-deep); }
+.wish-btn.active { background: var(--rose-faint); color: var(--rose-deep); }
+.wish-btn.active::before { content: '♥'; }
+.wish-btn:not(.active)::before { content: '♡'; }
+
+/* Wishlist page empty state */
+.wish-empty {
+  padding: 60px 20px; text-align: center; color: var(--muted);
+  background: var(--panel); border: 1px dashed var(--line); border-radius: 16px;
+}
+.wish-empty .wish-empty-icon { font-size: 40px; color: var(--rose); margin-bottom: 12px; }
+.wish-empty h3 { font-family: 'Fraunces', serif; font-size: 24px; color: var(--ink); margin-bottom: 6px; font-weight: 500; }
+
+/* Buyer profile page */
+.profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 760px; }
+.profile-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+.profile-card h3 { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; margin-bottom: 14px; }
+.profile-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+.profile-row:last-child { border-bottom: none; }
+.profile-row .k { color: var(--muted); }
+.profile-row .v { color: var(--ink); font-weight: 500; }
+@media (max-width: 700px) {
+  .profile-grid { grid-template-columns: 1fr; }
+  .buyer-console .console-sidebar { width: 200px; }
+}
 .buyer-hero {
   display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px;
   padding: 48px 0 56px; border-bottom: 1px solid var(--line-soft); margin-bottom: 48px;
@@ -667,6 +709,7 @@ const defaultState = () => ({
   buyerCart: [],
   buyerProfile: null,
   buyerOrders: [],
+  buyerWishlist: [],
 });
 
 function loadState() {
@@ -701,7 +744,15 @@ function AppProvider({ children }) {
   // Patching helpers — these modify state immutably
   const actions = useMemo(() => ({
     setCurrentUser: (u) => setState(s => ({ ...s, currentUser: u })),
-    logout: () => setState(s => ({ ...s, currentUser: null, buyerCart: [] })),
+    logout: () => setState(s => ({ ...s, currentUser: null, buyerCart: [], buyerWishlist: [] })),
+
+    // Buyer wishlist
+    toggleWishlist: (productId) => setState(s => {
+      const list = s.buyerWishlist || [];
+      const exists = list.includes(productId);
+      return { ...s, buyerWishlist: exists ? list.filter(x => x !== productId) : [...list, productId] };
+    }),
+    clearWishlist: () => setState(s => ({ ...s, buyerWishlist: [] })),
 
     // Vendor signup
     applyVendor: (data) => setState(s => {
@@ -1315,12 +1366,15 @@ function BuyerOnboard({ onNav }) {
 
 // ============ BUYER SHOP ============
 function BuyerShop({ onNav }) {
-  const { state, addToast } = useApp();
+  const { state, actions, addToast } = useApp();
   const [cat, setCat] = useState('all');
 
   const user = state.currentUser;
   if (!user) { onNav('buyer-login'); return null; }
   if (!state.buyerProfile) { onNav('buyer-onboard'); return null; }
+
+  const wishlist = state.buyerWishlist || [];
+  const isWished = (id) => wishlist.includes(id);
 
   const liveProducts = state.products.filter(p => p.listed && p.approved && totalStock(p.stock) > 0);
   const categories = ['all', ...Array.from(new Set(liveProducts.map(p => p.category)))];
@@ -1339,49 +1393,57 @@ function BuyerShop({ onNav }) {
   const withMatch = shown.map(p => ({ ...p, match: matchFor(p) })).sort((a, b) => b.match - a.match);
 
   return (
-    <div className="buyer-page">
-      <div className="buyer-hero">
-        <div>
-          <div className="landing-eyebrow" style={{ marginBottom: 16 }}>Hello {user.name?.split(' ')[0] || 'there'}</div>
-          <h1 className="buyer-hero-headline">Your edit is <em>ready</em>.</h1>
-          <p className="buyer-hero-sub">Curated from boutiques and brands across India based on your profile. Tap any piece to see why it suits you and where to buy.</p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-primary" onClick={() => onNav('buyer-cart')}>View cart ({state.buyerCart.length})</button>
-            <button className="btn btn-secondary" onClick={() => onNav('buyer-orders')}>My orders</button>
+    <BuyerLayout active="buyer-shop" onNav={onNav}>
+      <div className="buyer-page">
+        <div className="buyer-hero">
+          <div>
+            <div className="landing-eyebrow" style={{ marginBottom: 16 }}>Hello {user.name?.split(' ')[0] || 'there'}</div>
+            <h1 className="buyer-hero-headline">Your edit is <em>ready</em>.</h1>
+            <p className="buyer-hero-sub">Curated from boutiques and brands across India based on your profile. Tap any piece to see why it suits you and where to buy.</p>
+          </div>
+          <div className="buyer-hero-visual"></div>
+        </div>
+
+        <div className="section-head">
+          <div>
+            <div className="section-title"><em>{liveProducts.length}</em> pieces matched for you</div>
+            <div className="section-sub">Across {new Set(liveProducts.map(p => p.vendorId)).size} brands on Styli</div>
           </div>
         </div>
-        <div className="buyer-hero-visual"></div>
-      </div>
 
-      <div className="section-head">
-        <div>
-          <div className="section-title"><em>{liveProducts.length}</em> pieces matched for you</div>
-          <div className="section-sub">Across {new Set(liveProducts.map(p => p.vendorId)).size} brands on Styli</div>
+        <div className="filters">
+          {categories.map(c => (
+            <button key={c} className={`filter-chip ${cat === c ? 'active' : ''}`} onClick={() => setCat(c)}>{c === 'all' ? 'All' : c}</button>
+          ))}
+        </div>
+
+        <div className="products-grid">
+          {withMatch.map(p => {
+            const v = state.vendors.find(x => x.id === p.vendorId);
+            const wished = isWished(p.id);
+            return (
+              <button key={p.id} className="product-card" onClick={() => { onNav('buyer-product', p.id); }}>
+                <div className={`product-image ${p.grad}`}>
+                  <div className="match-badge">{p.match}% match</div>
+                  <button
+                    className={`wish-btn ${wished ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      actions.toggleWishlist(p.id);
+                      addToast(wished ? 'Removed from wishlist' : 'Saved to wishlist', wished ? 'info' : 'success');
+                    }}
+                    aria-label={wished ? 'Remove from wishlist' : 'Save to wishlist'}
+                  ></button>
+                </div>
+                <div className="product-brand">{v?.name || 'Brand'}</div>
+                <div className="product-name">{p.name}</div>
+                <div className="product-price">{formatINR(p.price)}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
-
-      <div className="filters">
-        {categories.map(c => (
-          <button key={c} className={`filter-chip ${cat === c ? 'active' : ''}`} onClick={() => setCat(c)}>{c === 'all' ? 'All' : c}</button>
-        ))}
-      </div>
-
-      <div className="products-grid">
-        {withMatch.map(p => {
-          const v = state.vendors.find(x => x.id === p.vendorId);
-          return (
-            <button key={p.id} className="product-card" onClick={() => { onNav('buyer-product', p.id); }}>
-              <div className={`product-image ${p.grad}`}>
-                <div className="match-badge">{p.match}% match</div>
-              </div>
-              <div className="product-brand">{v?.name || 'Brand'}</div>
-              <div className="product-name">{p.name}</div>
-              <div className="product-price">{formatINR(p.price)}</div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    </BuyerLayout>
   );
 }
 
@@ -1400,43 +1462,54 @@ function BuyerProduct({ onNav, productId }) {
   };
 
   const match = 85 + Math.floor(Math.random() * 10);
+  const wished = (state.buyerWishlist || []).includes(p.id);
 
   return (
-    <div className="buyer-page">
-      <div className="breadcrumb">
-        <a onClick={() => onNav('buyer-shop')}>Shop</a> / <a>{p.category}</a> / <span>{p.name}</span>
-      </div>
-      <div className="product-detail" style={{ padding: 0 }}>
-        <div className={`detail-image-large ${p.grad}`}></div>
-        <div>
-          <div className="detail-brand">{v?.name || 'Brand'}</div>
-          <h1 className="detail-name">{p.name}</h1>
-          <div className="detail-price">{formatINR(p.price)}</div>
-          <p className="detail-desc">{p.description}</p>
-          <div className="why-section">
-            <div className="why-label">Why this suits you · {match}% match</div>
-            <div className="why-item"><div className="why-bullet">1</div><div className="why-text">The {p.tags[0]?.toLowerCase() || 'fit'} works for your {state.buyerProfile?.fit || 'regular'} fit preference</div></div>
-            <div className="why-item"><div className="why-bullet">2</div><div className="why-text">{p.tags.includes('Warm tones') || p.tags.includes('Cool tones') ? `Complements your warm undertone` : 'Color palette suits your undertone'}</div></div>
-            <div className="why-item"><div className="why-bullet">3</div><div className="why-text">{v?.name} runs true to size in our tests — size {size || 'M'} fits your measurements</div></div>
-          </div>
-          <div className="size-section">
-            <div className="size-label">Size</div>
-            <div className="size-row">
-              {p.sizes.map(s => {
-                const out = (p.stock[s] || 0) === 0;
-                return (
-                  <button key={s} className={`size-box ${size === s ? 'selected' : ''} ${out ? 'out' : ''}`} onClick={() => !out && setSize(s)}>{s}</button>
-                );
-              })}
+    <BuyerLayout active="buyer-shop" onNav={onNav}>
+      <div className="buyer-page">
+        <div className="breadcrumb">
+          <a onClick={() => onNav('buyer-shop')}>Shop</a> / <a>{p.category}</a> / <span>{p.name}</span>
+        </div>
+        <div className="product-detail" style={{ padding: 0 }}>
+          <div className={`detail-image-large ${p.grad}`}></div>
+          <div>
+            <div className="detail-brand">{v?.name || 'Brand'}</div>
+            <h1 className="detail-name">{p.name}</h1>
+            <div className="detail-price">{formatINR(p.price)}</div>
+            <p className="detail-desc">{p.description}</p>
+            <div className="why-section">
+              <div className="why-label">Why this suits you · {match}% match</div>
+              <div className="why-item"><div className="why-bullet">1</div><div className="why-text">The {p.tags[0]?.toLowerCase() || 'fit'} works for your {state.buyerProfile?.fit || 'regular'} fit preference</div></div>
+              <div className="why-item"><div className="why-bullet">2</div><div className="why-text">{p.tags.includes('Warm tones') || p.tags.includes('Cool tones') ? `Complements your warm undertone` : 'Color palette suits your undertone'}</div></div>
+              <div className="why-item"><div className="why-bullet">3</div><div className="why-text">{v?.name} runs true to size in our tests — size {size || 'M'} fits your measurements</div></div>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={addCart}>Add to cart</button>
-            <button className="btn btn-secondary" onClick={() => onNav('buyer-shop')}>Keep browsing</button>
+            <div className="size-section">
+              <div className="size-label">Size</div>
+              <div className="size-row">
+                {p.sizes.map(s => {
+                  const out = (p.stock[s] || 0) === 0;
+                  return (
+                    <button key={s} className={`size-box ${size === s ? 'selected' : ''} ${out ? 'out' : ''}`} onClick={() => !out && setSize(s)}>{s}</button>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={addCart}>Add to cart</button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  actions.toggleWishlist(p.id);
+                  addToast(wished ? 'Removed from wishlist' : 'Saved to wishlist', wished ? 'info' : 'success');
+                }}
+                aria-label={wished ? 'Remove from wishlist' : 'Save to wishlist'}
+              >{wished ? '♥ Saved' : '♡ Save'}</button>
+              <button className="btn btn-secondary" onClick={() => onNav('buyer-shop')}>Keep browsing</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </BuyerLayout>
   );
 }
 
@@ -1465,20 +1538,21 @@ function BuyerCart({ onNav }) {
   };
 
   return (
-    <div className="buyer-page" style={{ maxWidth: 1000 }}>
-      <div className="breadcrumb"><a onClick={() => onNav('buyer-shop')}>Shop</a> / <span>Cart</span></div>
-      <div className="section-head">
-        <div><div className="section-title">Your <em>cart</em></div><div className="section-sub">{items.length} item{items.length !== 1 ? 's' : ''}</div></div>
-      </div>
-
-      {items.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">◌</div>
-          <div className="empty-state-text">Your cart is empty.</div>
-          <button className="btn btn-primary" onClick={() => onNav('buyer-shop')}>Start shopping</button>
+    <BuyerLayout active="buyer-cart" onNav={onNav}>
+      <div className="buyer-page" style={{ maxWidth: 1000 }}>
+        <div className="breadcrumb"><a onClick={() => onNav('buyer-shop')}>Shop</a> / <span>Cart</span></div>
+        <div className="section-head">
+          <div><div className="section-title">Your <em>cart</em></div><div className="section-sub">{items.length} item{items.length !== 1 ? 's' : ''}</div></div>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 32 }}>
+
+        {items.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">◌</div>
+            <div className="empty-state-text">Your cart is empty.</div>
+            <button className="btn btn-primary" onClick={() => onNav('buyer-shop')}>Start shopping</button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 32 }}>
           <div>
             {items.map(it => (
               <div key={it.productId + it.size} className="cart-item">
@@ -1521,8 +1595,9 @@ function BuyerCart({ onNav }) {
             </div>
           </div>
         </div>
-      )}
-    </div>
+        )}
+      </div>
+    </BuyerLayout>
   );
 }
 
@@ -1531,6 +1606,7 @@ function BuyerOrders({ onNav }) {
   const myOrders = state.orders.filter(o => o.buyerId === state.currentUser?.id);
 
   return (
+    <BuyerLayout active="buyer-orders" onNav={onNav}>
     <div className="buyer-page" style={{ maxWidth: 900 }}>
       <div className="breadcrumb"><a onClick={() => onNav('buyer-shop')}>Shop</a> / <span>My orders</span></div>
       <div className="section-head">
@@ -1573,6 +1649,199 @@ function BuyerOrders({ onNav }) {
         </div>
       )}
     </div>
+    </BuyerLayout>
+  );
+}
+
+// ============ BUYER LAYOUT (sidebar + content wrapper) ============
+function BuyerLayout({ active, onNav, children }) {
+  const { state, actions, addToast } = useApp();
+  const user = state.currentUser;
+  const cartCount = (state.buyerCart || []).reduce((sum, x) => sum + (x.qty || 1), 0);
+  const wishCount = (state.buyerWishlist || []).length;
+
+  const NAV_ITEMS = [
+    { id: 'buyer-shop',     label: 'Shop',     icon: '◈' },
+    { id: 'buyer-cart',     label: 'Cart',     icon: '◐', badge: cartCount },
+    { id: 'buyer-wishlist', label: 'Wishlist', icon: '♡', badge: wishCount },
+    { id: 'buyer-orders',   label: 'Orders',   icon: '◊' },
+    { id: 'buyer-profile',  label: 'Profile',  icon: '◉' },
+  ];
+
+  const handleLogout = () => {
+    actions.logout();
+    addToast('Logged out', 'info');
+    onNav('landing');
+  };
+
+  return (
+    <div className="console buyer-console">
+      <aside className="console-sidebar">
+        <div className="console-brand">
+          <div className="console-brand-mark">styli<span className="dot">.</span></div>
+          <div className="console-brand-sub">Shop</div>
+        </div>
+        <div className="nav-section">
+          <div className="nav-label">Browse</div>
+          {NAV_ITEMS.map(item => (
+            <div key={item.id}
+              className={`nav-item ${active === item.id ? 'active' : ''}`}
+              onClick={() => onNav(item.id)}>
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+              {item.badge > 0 && <span className="nav-badge">{item.badge}</span>}
+            </div>
+          ))}
+        </div>
+        <div className="nav-section">
+          <div className="nav-label">Account</div>
+          <div className="nav-item" onClick={handleLogout}>
+            <span className="nav-icon">⎋</span>
+            <span>Logout</span>
+          </div>
+        </div>
+        {user && (
+          <div className="console-footer">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="user-avatar">{initials(user.name || user.email || '?')}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(user.name || '').split(' ')[0] || 'You'}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Shopper</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
+      <main className="console-main">{children}</main>
+    </div>
+  );
+}
+
+// ============ BUYER WISHLIST ============
+function BuyerWishlist({ onNav }) {
+  const { state, actions, addToast } = useApp();
+  const user = state.currentUser;
+  if (!user) { onNav('buyer-login'); return null; }
+
+  const ids = state.buyerWishlist || [];
+  const items = ids
+    .map(id => state.products.find(p => p.id === id))
+    .filter(Boolean)
+    .filter(p => p.listed && p.approved);
+
+  return (
+    <BuyerLayout active="buyer-wishlist" onNav={onNav}>
+      <div className="buyer-page">
+        <div className="section-head">
+          <div>
+            <div className="section-title">Your <em>wishlist</em></div>
+            <div className="section-sub">{items.length} item{items.length !== 1 ? 's' : ''} saved for later</div>
+          </div>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="wish-empty">
+            <div className="wish-empty-icon">♡</div>
+            <h3>No saved pieces yet</h3>
+            <p style={{ marginBottom: 18 }}>Tap the heart icon on any product to save it here.</p>
+            <button className="btn btn-primary" onClick={() => onNav('buyer-shop')}>Browse the shop</button>
+          </div>
+        ) : (
+          <div className="products-grid">
+            {items.map(p => {
+              const v = state.vendors.find(x => x.id === p.vendorId);
+              return (
+                <div key={p.id} className="product-card" style={{ cursor: 'default' }}>
+                  <div className={`product-image ${p.grad}`}>
+                    <button
+                      className="wish-btn active"
+                      onClick={(e) => { e.stopPropagation(); actions.toggleWishlist(p.id); addToast('Removed from wishlist', 'info'); }}
+                      aria-label="Remove from wishlist"
+                    ></button>
+                  </div>
+                  <div className="product-brand">{v?.name || 'Brand'}</div>
+                  <div className="product-name">{p.name}</div>
+                  <div className="product-price">{formatINR(p.price)}</div>
+                  <button className="btn btn-secondary" style={{ marginTop: 8, width: '100%' }} onClick={() => onNav('buyer-product', p.id)}>View details</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </BuyerLayout>
+  );
+}
+
+// ============ BUYER PROFILE ============
+function BuyerProfile({ onNav }) {
+  const { state } = useApp();
+  const user = state.currentUser;
+  const profile = state.buyerProfile;
+  if (!user) { onNav('buyer-login'); return null; }
+
+  const styleLabel = { boho: 'Boho / relaxed', classic: 'Classic / formal', minimal: 'Minimal', casual: 'Casual' };
+
+  return (
+    <BuyerLayout active="buyer-profile" onNav={onNav}>
+      <div className="buyer-page">
+        <div className="section-head">
+          <div>
+            <div className="section-title">Your <em>profile</em></div>
+            <div className="section-sub">Signed in as {user.email}</div>
+          </div>
+        </div>
+
+        <div className="profile-grid">
+          <div className="profile-card">
+            <h3>Account</h3>
+            <div className="profile-row"><span className="k">Name</span><span className="v">{user.name || '—'}</span></div>
+            <div className="profile-row"><span className="k">Email</span><span className="v">{user.email}</span></div>
+            <div className="profile-row"><span className="k">Role</span><span className="v">Buyer</span></div>
+          </div>
+
+          <div className="profile-card">
+            <h3>Style preferences</h3>
+            {profile ? (
+              <>
+                <div className="profile-row"><span className="k">Gender</span><span className="v">{profile.gender || '—'}</span></div>
+                <div className="profile-row"><span className="k">Style</span><span className="v">{styleLabel[profile.style] || profile.style || '—'}</span></div>
+                <div className="profile-row"><span className="k">Fit</span><span className="v">{profile.fit || '—'}</span></div>
+                <div className="profile-row"><span className="k">Face scan</span><span className="v">{profile.scanned ? 'Completed' : 'Not done'}</span></div>
+                <button className="btn btn-secondary" style={{ marginTop: 12, width: '100%' }} onClick={() => onNav('buyer-onboard')}>Edit preferences</button>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>You haven't completed the style quiz yet.</p>
+                <button className="btn btn-primary" onClick={() => onNav('buyer-onboard')}>Complete your profile</button>
+              </>
+            )}
+          </div>
+
+          <div className="profile-card">
+            <h3>Measurements</h3>
+            {profile ? (
+              <>
+                <div className="profile-row"><span className="k">Height</span><span className="v">{profile.height} cm</span></div>
+                <div className="profile-row"><span className="k">Weight</span><span className="v">{profile.weight} kg</span></div>
+                <div className="profile-row"><span className="k">Chest</span><span className="v">{profile.chest} cm</span></div>
+                <div className="profile-row"><span className="k">Waist</span><span className="v">{profile.waist} cm</span></div>
+                <div className="profile-row"><span className="k">Hip</span><span className="v">{profile.hip} cm</span></div>
+              </>
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--muted)' }}>Complete the style quiz to save your measurements.</p>
+            )}
+          </div>
+
+          <div className="profile-card">
+            <h3>Quick actions</h3>
+            <button className="btn btn-secondary" style={{ width: '100%', marginBottom: 8 }} onClick={() => onNav('buyer-orders')}>View order history</button>
+            <button className="btn btn-secondary" style={{ width: '100%', marginBottom: 8 }} onClick={() => onNav('buyer-wishlist')}>View wishlist ({(state.buyerWishlist || []).length})</button>
+            <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => onNav('buyer-cart')}>View cart ({(state.buyerCart || []).length})</button>
+          </div>
+        </div>
+      </div>
+    </BuyerLayout>
   );
 }
 
@@ -2251,7 +2520,9 @@ const ROUTES = {
   'buyer-shop':      { path: '/shop' },
   'buyer-product':   { path: '/product/:id', pattern: /^\/product\/([^/]+)$/ },
   'buyer-cart':      { path: '/cart' },
+  'buyer-wishlist':  { path: '/wishlist' },
   'buyer-orders':    { path: '/orders' },
+  'buyer-profile':   { path: '/profile' },
   'vendor-login':    { path: '/vendor/login' },
   'vendor-apply':    { path: '/vendor/apply' },
   'vendor-applied':  { path: '/vendor/applied' },
@@ -2342,7 +2613,9 @@ function Router() {
       {route === 'buyer-shop' && <BuyerShop onNav={nav} />}
       {route === 'buyer-product' && <BuyerProduct onNav={nav} productId={routeParam} />}
       {route === 'buyer-cart' && <BuyerCart onNav={nav} />}
+      {route === 'buyer-wishlist' && <BuyerWishlist onNav={nav} />}
       {route === 'buyer-orders' && <BuyerOrders onNav={nav} />}
+      {route === 'buyer-profile' && <BuyerProfile onNav={nav} />}
       {route === 'vendor-login' && <VendorLogin onNav={nav} />}
       {route === 'vendor-apply' && <VendorApply onNav={nav} />}
       {route === 'vendor-applied' && <VendorApplied onNav={nav} />}
