@@ -204,6 +204,38 @@ html, body {
 .wish-empty .wish-empty-icon { font-size: 40px; color: var(--rose); margin-bottom: 12px; }
 .wish-empty h3 { font-family: 'Fraunces', serif; font-size: 24px; color: var(--ink); margin-bottom: 6px; font-weight: 500; }
 
+/* Team console role badge */
+.role-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
+}
+.role-pill.super { background: var(--rose-faint); color: var(--rose-deep); }
+.role-pill.admin { background: var(--gold-light); color: var(--gold); }
+.role-pill.user  { background: var(--sage-light); color: var(--sage); }
+.role-pill.muted { background: var(--cream); color: var(--muted); }
+
+/* Disabled action button (visible-but-blocked) */
+.btn-disabled-perm {
+  opacity: 0.45; cursor: not-allowed; pointer-events: none;
+}
+.perm-hint {
+  font-size: 11px; color: var(--muted); font-style: italic; margin-top: 4px;
+}
+
+/* Team table */
+.team-table {
+  width: 100%; border-collapse: collapse; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  font-size: 13.5px;
+}
+.team-table th, .team-table td {
+  padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line-soft);
+}
+.team-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; background: var(--cream-light); }
+.team-table tr:last-child td { border-bottom: none; }
+.team-table .actions-cell { text-align: right; }
+.team-table .actions-cell button { margin-left: 6px; }
+
 /* Buyer profile page */
 .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 760px; }
 .profile-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
@@ -710,7 +742,41 @@ const defaultState = () => ({
   buyerProfile: null,
   buyerOrders: [],
   buyerWishlist: [],
+  teamUsers: [
+    { id: 'tm-super', email: 'super@styli.in', password: 'super123', name: 'Aditya Bhardwaj',  role: 'team-super', joinedAt: '1 Jan 2026' },
+    { id: 'tm-admin', email: 'team@styli.in',  password: 'team123',  name: 'Operations Lead',   role: 'team-admin', joinedAt: '12 Feb 2026' },
+    { id: 'tm-user',  email: 'staff@styli.in', password: 'staff123', name: 'Junior Staff',      role: 'team-user',  joinedAt: '4 Apr 2026' },
+  ],
 });
+
+// ============ TEAM CONSOLE — ROLES & PERMISSIONS ============
+const TEAM_ROLE_LABEL = {
+  'team-super': 'Superadmin',
+  'team-admin': 'Admin',
+  'team-user':  'User',
+};
+
+const TEAM_PERMISSIONS = {
+  // Read access
+  'view.dashboard':       ['team-super', 'team-admin', 'team-user'],
+  'view.vendors':         ['team-super', 'team-admin', 'team-user'],
+  'view.products':        ['team-super', 'team-admin', 'team-user'],
+  'view.orders':          ['team-super', 'team-admin', 'team-user'],
+  'view.customers':       ['team-super', 'team-admin', 'team-user'],
+  // Operational write access
+  'edit.vendors.approve': ['team-super', 'team-admin'],
+  'edit.products.unlist': ['team-super', 'team-admin'],
+  'edit.orders.refund':   ['team-super', 'team-admin'],
+  // Destructive / governance
+  'edit.vendors.delete':  ['team-super'],
+  'edit.products.delete': ['team-super'],
+  'view.team':            ['team-super'],
+  'edit.team':            ['team-super'],
+  'view.settings':        ['team-super'],
+  'edit.settings':        ['team-super'],
+};
+
+const can = (action, role) => (TEAM_PERMISSIONS[action] || []).includes(role);
 
 function loadState() {
   try {
@@ -753,6 +819,19 @@ function AppProvider({ children }) {
       return { ...s, buyerWishlist: exists ? list.filter(x => x !== productId) : [...list, productId] };
     }),
     clearWishlist: () => setState(s => ({ ...s, buyerWishlist: [] })),
+
+    // Team console actions (Superadmin only — UI must gate these too)
+    addTeamMember: (data) => setState(s => {
+      const id = 'tm-' + Math.random().toString(36).slice(2, 8);
+      const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      const newMember = { id, joinedAt: today, ...data };
+      return { ...s, teamUsers: [...(s.teamUsers || []), newMember] };
+    }),
+    removeTeamMember: (id) => setState(s => ({ ...s, teamUsers: (s.teamUsers || []).filter(t => t.id !== id) })),
+    updateTeamMemberRole: (id, role) => setState(s => ({
+      ...s,
+      teamUsers: (s.teamUsers || []).map(t => t.id === id ? { ...t, role } : t),
+    })),
 
     // Vendor signup
     applyVendor: (data) => setState(s => {
@@ -929,7 +1008,10 @@ function Landing({ onNav }) {
       <div className="landing-wrap">
         <nav className="landing-nav">
           <div className="landing-brand">styli<span className="dot">.</span></div>
-          <button className="btn btn-small btn-ghost" onClick={() => onNav('admin-login')}>Admin</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-small btn-ghost" onClick={() => onNav('team-login')}>Team</button>
+            <button className="btn btn-small btn-ghost" onClick={() => onNav('admin-login')}>Admin</button>
+          </div>
         </nav>
         <div className="landing-eyebrow">AI Fashion Marketplace · India</div>
         <h1 className="landing-h1">Clothes that <em>actually</em> suit you.</h1>
@@ -1845,6 +1927,497 @@ function BuyerProfile({ onNav }) {
   );
 }
 
+// ============ TEAM LOGIN ============
+function TeamLogin({ onNav }) {
+  const { state, actions, addToast } = useApp();
+  const [email, setEmail] = useState('super@styli.in');
+  const [password, setPassword] = useState('');
+
+  const submit = () => {
+    const member = (state.teamUsers || []).find(t => t.email.toLowerCase() === email.trim().toLowerCase() && t.password === password);
+    if (!member) { addToast('Invalid credentials.', 'error', '✗'); return; }
+    actions.setCurrentUser({ id: member.id, name: member.name, email: member.email, role: member.role });
+    addToast(`Welcome, ${member.name.split(' ')[0]}`, 'success');
+    onNav('team-dashboard');
+  };
+
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-brand">styli<span className="dot">.</span></div>
+        <span className="auth-back" onClick={() => onNav('landing')}>← Back</span>
+        <h2 className="auth-title">Team <em>console</em></h2>
+        <p className="auth-sub">Internal panel for the Styli team.</p>
+        <div className="auth-field">
+          <label className="auth-label">Email</label>
+          <input className="auth-input" value={email} onChange={e => setEmail(e.target.value)} />
+        </div>
+        <div className="auth-field">
+          <label className="auth-label">Password</label>
+          <input className="auth-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••" />
+        </div>
+        <button className="btn btn-primary auth-btn" onClick={submit}>Log in →</button>
+        <div style={{ marginTop: 16, padding: 12, background: 'var(--cream)', borderRadius: 10, fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>
+          <strong style={{ color: 'var(--ink)' }}>Demo accounts:</strong><br/>
+          <span className="role-pill super" style={{ marginRight: 6 }}>Superadmin</span> super@styli.in / super123<br/>
+          <span className="role-pill admin" style={{ marginRight: 6 }}>Admin</span> team@styli.in / team123<br/>
+          <span className="role-pill user" style={{ marginRight: 6 }}>User</span> staff@styli.in / staff123
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ TEAM CONSOLE (sidebar + role-aware sub-views) ============
+function TeamConsole({ onNav }) {
+  const { state, actions, addToast } = useApp();
+  const user = state.currentUser;
+  const [active, setActive] = useState('dashboard');
+
+  if (!user || !['team-super', 'team-admin', 'team-user'].includes(user.role)) {
+    onNav('team-login');
+    return null;
+  }
+
+  const role = user.role;
+  const NAV_ITEMS = [
+    { id: 'dashboard', label: 'Dashboard', icon: '◉', perm: 'view.dashboard' },
+    { id: 'vendors',   label: 'Vendors',   icon: '◊', perm: 'view.vendors' },
+    { id: 'products',  label: 'Products',  icon: '▥', perm: 'view.products' },
+    { id: 'orders',    label: 'Orders',    icon: '◐', perm: 'view.orders' },
+    { id: 'customers', label: 'Customers', icon: '◈', perm: 'view.customers' },
+  ];
+  const ADMIN_NAV = [
+    { id: 'team',     label: 'Team',     icon: '◆', perm: 'view.team' },
+    { id: 'settings', label: 'Settings', icon: '⚙', perm: 'view.settings' },
+  ];
+  const visibleNav = NAV_ITEMS.filter(item => can(item.perm, role));
+  const visibleAdmin = ADMIN_NAV.filter(item => can(item.perm, role));
+
+  const logout = () => {
+    actions.logout();
+    addToast('Logged out', 'info');
+    onNav('landing');
+  };
+
+  const roleClass = role === 'team-super' ? 'super' : role === 'team-admin' ? 'admin' : 'user';
+
+  return (
+    <div className="console">
+      <aside className="console-sidebar">
+        <div className="console-brand">
+          <div className="console-brand-mark">styli<span className="dot">.</span></div>
+          <div className="console-brand-sub">Team Console</div>
+        </div>
+        <div className="nav-section">
+          <div className="nav-label">Operations</div>
+          {visibleNav.map(item => (
+            <div key={item.id}
+              className={`nav-item ${active === item.id ? 'active' : ''}`}
+              onClick={() => setActive(item.id)}>
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+        {visibleAdmin.length > 0 && (
+          <div className="nav-section">
+            <div className="nav-label">Governance</div>
+            {visibleAdmin.map(item => (
+              <div key={item.id}
+                className={`nav-item ${active === item.id ? 'active' : ''}`}
+                onClick={() => setActive(item.id)}>
+                <span className="nav-icon">{item.icon}</span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="nav-section">
+          <div className="nav-label">Account</div>
+          <div className="nav-item" onClick={logout}>
+            <span className="nav-icon">⎋</span>
+            <span>Logout</span>
+          </div>
+        </div>
+        <div className="console-footer">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="user-avatar">{initials(user.name)}</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name.split(' ')[0]}</div>
+              <span className={`role-pill ${roleClass}`}>{TEAM_ROLE_LABEL[role]}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <main className="console-main">
+        {active === 'dashboard' && <TeamDashView role={role} />}
+        {active === 'vendors'   && <TeamVendorsView role={role} />}
+        {active === 'products'  && <TeamProductsView role={role} />}
+        {active === 'orders'    && <TeamOrdersView role={role} />}
+        {active === 'customers' && <TeamCustomersView role={role} />}
+        {active === 'team'      && <TeamMembersView role={role} />}
+        {active === 'settings'  && <TeamSettingsView role={role} />}
+      </main>
+    </div>
+  );
+}
+
+// ============ TEAM SUB-VIEWS ============
+function TeamDashView({ role }) {
+  const { state } = useApp();
+  const pendingVendors = state.vendors.filter(v => v.status === 'pending').length;
+  const liveProducts   = state.products.filter(p => p.listed && p.approved).length;
+  const totalOrders    = state.orders.length;
+  const totalGmv       = state.orders.reduce((s, o) => s + (o.price * o.qty), 0);
+  const roleClass = role === 'team-super' ? 'super' : role === 'team-admin' ? 'admin' : 'user';
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Team dashboard</h1>
+          <div className="page-sub">Your role: <span className={`role-pill ${roleClass}`}>{TEAM_ROLE_LABEL[role]}</span></div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+        <div className="panel" style={{ padding: 18 }}>
+          <div className="panel-sub">Pending vendor applications</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 500, marginTop: 8 }}>{pendingVendors}</div>
+        </div>
+        <div className="panel" style={{ padding: 18 }}>
+          <div className="panel-sub">Live products</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 500, marginTop: 8 }}>{liveProducts}</div>
+        </div>
+        <div className="panel" style={{ padding: 18 }}>
+          <div className="panel-sub">Orders placed</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 500, marginTop: 8 }}>{totalOrders}</div>
+        </div>
+        <div className="panel" style={{ padding: 18 }}>
+          <div className="panel-sub">Total GMV</div>
+          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 32, fontWeight: 500, marginTop: 8 }}>{formatINR(totalGmv)}</div>
+        </div>
+      </div>
+      <div className="panel" style={{ padding: 20 }}>
+        <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 500, marginBottom: 12 }}>Your access at a glance</h3>
+        <div style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+          {role === 'team-super' && <span>You have <strong>full access</strong>. You can manage team members, change settings, approve vendors, moderate products, refund orders, and delete data.</span>}
+          {role === 'team-admin' && <span>You have <strong>operational access</strong>. You can approve vendors, moderate products, and refund orders. You cannot manage team members, change settings, or delete data — those are Superadmin only.</span>}
+          {role === 'team-user'  && <span>You have <strong>read-only access</strong>. You can view all platform data — vendors, products, orders, customers — but cannot make any changes.</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamVendorsView({ role }) {
+  const { state, actions, addToast } = useApp();
+  const canApprove = can('edit.vendors.approve', role);
+  const canDelete  = can('edit.vendors.delete', role);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Vendors</h1>
+          <div className="page-sub">{state.vendors.length} vendors total</div>
+        </div>
+      </div>
+      <table className="team-table">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>City</th><th>Type</th><th>Status</th><th className="actions-cell">Actions</th></tr>
+        </thead>
+        <tbody>
+          {state.vendors.map(v => (
+            <tr key={v.id}>
+              <td><strong>{v.name}</strong></td>
+              <td>{v.email}</td>
+              <td>{v.city}</td>
+              <td>{v.type}</td>
+              <td><span className={`badge ${v.status === 'approved' ? 'badge-ok' : v.status === 'pending' ? 'badge-warn' : 'badge-alert'}`}>{v.status}</span></td>
+              <td className="actions-cell">
+                {v.status === 'pending' && (
+                  <>
+                    <button
+                      className={`btn btn-small btn-primary ${canApprove ? '' : 'btn-disabled-perm'}`}
+                      onClick={() => { if (canApprove) { actions.approveVendor(v.id); addToast('Vendor approved', 'success'); } }}
+                      title={canApprove ? '' : 'Admin role or above'}
+                    >Approve</button>
+                    <button
+                      className={`btn btn-small btn-ghost ${canApprove ? '' : 'btn-disabled-perm'}`}
+                      onClick={() => { if (canApprove) { actions.rejectVendor(v.id); addToast('Vendor rejected', 'info'); } }}
+                    >Reject</button>
+                  </>
+                )}
+                <button
+                  className={`btn btn-small btn-ghost ${canDelete ? '' : 'btn-disabled-perm'}`}
+                  onClick={() => { if (canDelete) addToast('Delete is wired (no-op in prototype)', 'info'); }}
+                  title={canDelete ? 'Delete vendor (Superadmin only)' : 'Superadmin only'}
+                >Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!canApprove && <div className="perm-hint">Read-only mode — your role cannot edit vendors.</div>}
+    </div>
+  );
+}
+
+function TeamProductsView({ role }) {
+  const { state, actions, addToast } = useApp();
+  const canModerate = can('edit.products.unlist', role);
+  const canDelete   = can('edit.products.delete', role);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Products</h1>
+          <div className="page-sub">{state.products.length} products in catalog</div>
+        </div>
+      </div>
+      <table className="team-table">
+        <thead>
+          <tr><th>Name</th><th>Vendor</th><th>Price</th><th>Listed</th><th className="actions-cell">Actions</th></tr>
+        </thead>
+        <tbody>
+          {state.products.map(p => {
+            const v = state.vendors.find(x => x.id === p.vendorId);
+            return (
+              <tr key={p.id}>
+                <td><strong>{p.name}</strong></td>
+                <td>{v?.name || '—'}</td>
+                <td>{formatINR(p.price)}</td>
+                <td><span className={`badge ${p.listed ? 'badge-ok' : 'badge-warn'}`}>{p.listed ? 'Live' : 'Hidden'}</span></td>
+                <td className="actions-cell">
+                  <button
+                    className={`btn btn-small btn-ghost ${canModerate ? '' : 'btn-disabled-perm'}`}
+                    onClick={() => { if (canModerate) { actions.toggleProductListed(p.id); addToast('Product visibility toggled', 'info'); } }}
+                  >{p.listed ? 'Unlist' : 'Relist'}</button>
+                  <button
+                    className={`btn btn-small btn-ghost ${canDelete ? '' : 'btn-disabled-perm'}`}
+                    onClick={() => { if (canDelete) addToast('Delete is wired (Superadmin only)', 'info'); }}
+                  >Delete</button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {!canModerate && <div className="perm-hint">Read-only mode — your role cannot moderate products.</div>}
+    </div>
+  );
+}
+
+function TeamOrdersView({ role }) {
+  const { state, addToast } = useApp();
+  const canRefund = can('edit.orders.refund', role);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Orders</h1>
+          <div className="page-sub">{state.orders.length} orders across the marketplace</div>
+        </div>
+      </div>
+      <table className="team-table">
+        <thead>
+          <tr><th>Order ID</th><th>Buyer</th><th>City</th><th>Amount</th><th>Status</th><th className="actions-cell">Actions</th></tr>
+        </thead>
+        <tbody>
+          {state.orders.map(o => (
+            <tr key={o.id}>
+              <td><strong>{o.id}</strong></td>
+              <td>{o.buyer}</td>
+              <td>{o.city}</td>
+              <td>{formatINR(o.price * o.qty)}</td>
+              <td><span className={`badge ${o.status === 'delivered' ? 'badge-ok' : o.status === 'in-transit' ? 'badge-neutral' : 'badge-warn'}`}>{o.status}</span></td>
+              <td className="actions-cell">
+                <button
+                  className={`btn btn-small btn-ghost ${canRefund ? '' : 'btn-disabled-perm'}`}
+                  onClick={() => { if (canRefund) addToast('Refund initiated (mocked)', 'success'); }}
+                  title={canRefund ? '' : 'Admin role or above'}
+                >Refund</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!canRefund && <div className="perm-hint">Read-only mode — your role cannot refund orders.</div>}
+    </div>
+  );
+}
+
+function TeamCustomersView({ role }) {
+  const { state } = useApp();
+  const buyerMap = new Map();
+  state.orders.forEach(o => {
+    if (!buyerMap.has(o.buyerId)) {
+      buyerMap.set(o.buyerId, { id: o.buyerId, name: o.buyer, city: o.city, orders: 0, gmv: 0 });
+    }
+    const b = buyerMap.get(o.buyerId);
+    b.orders += 1;
+    b.gmv += o.price * o.qty;
+  });
+  const customers = Array.from(buyerMap.values());
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Customers</h1>
+          <div className="page-sub">{customers.length} buyers with order history</div>
+        </div>
+      </div>
+      <table className="team-table">
+        <thead>
+          <tr><th>Name</th><th>City</th><th>Orders</th><th>Total spent</th></tr>
+        </thead>
+        <tbody>
+          {customers.map(c => (
+            <tr key={c.id}>
+              <td><strong>{c.name}</strong></td>
+              <td>{c.city}</td>
+              <td>{c.orders}</td>
+              <td>{formatINR(c.gmv)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TeamMembersView({ role }) {
+  const { state, actions, addToast } = useApp();
+  const isSuper = can('edit.team', role);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'team-user' });
+
+  const submit = () => {
+    if (!form.name || !form.email || !form.password) { addToast('All fields required', 'warn'); return; }
+    actions.addTeamMember(form);
+    addToast(`Added ${form.name}`, 'success');
+    setForm({ name: '', email: '', password: '', role: 'team-user' });
+    setShowAdd(false);
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Team members</h1>
+          <div className="page-sub">{(state.teamUsers || []).length} people on the team</div>
+        </div>
+        {isSuper && <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ Add member'}</button>}
+      </div>
+      {showAdd && (
+        <div className="panel" style={{ padding: 20, marginBottom: 20 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 12 }}>Add a team member</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="field">
+              <label className="field-label">Name</label>
+              <input className="field-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="field">
+              <label className="field-label">Email</label>
+              <input className="field-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="field">
+              <label className="field-label">Password</label>
+              <input className="field-input" type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="something memorable" />
+            </div>
+            <div className="field">
+              <label className="field-label">Role</label>
+              <select className="field-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                <option value="team-super">Superadmin</option>
+                <option value="team-admin">Admin</option>
+                <option value="team-user">User</option>
+              </select>
+            </div>
+          </div>
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={submit}>Add member</button>
+        </div>
+      )}
+      <table className="team-table">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th className="actions-cell">Actions</th></tr>
+        </thead>
+        <tbody>
+          {(state.teamUsers || []).map(t => {
+            const cls = t.role === 'team-super' ? 'super' : t.role === 'team-admin' ? 'admin' : 'user';
+            return (
+              <tr key={t.id}>
+                <td><strong>{t.name}</strong></td>
+                <td>{t.email}</td>
+                <td><span className={`role-pill ${cls}`}>{TEAM_ROLE_LABEL[t.role]}</span></td>
+                <td>{t.joinedAt}</td>
+                <td className="actions-cell">
+                  {isSuper ? (
+                    <>
+                      <select
+                        value={t.role}
+                        onChange={e => { actions.updateTeamMemberRole(t.id, e.target.value); addToast(`${t.name} is now ${TEAM_ROLE_LABEL[e.target.value]}`, 'success'); }}
+                        style={{ padding: '4px 8px', fontSize: 12, marginRight: 8 }}
+                      >
+                        <option value="team-super">Superadmin</option>
+                        <option value="team-admin">Admin</option>
+                        <option value="team-user">User</option>
+                      </select>
+                      <button className="btn btn-small btn-ghost" onClick={() => { if (window.confirm(`Remove ${t.name}?`)) { actions.removeTeamMember(t.id); addToast('Removed', 'info'); } }}>Remove</button>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>Superadmin only</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TeamSettingsView({ role }) {
+  const { addToast } = useApp();
+  const canEdit = can('edit.settings', role);
+  const [siteName, setSiteName] = useState('Styli');
+  const [supportEmail, setSupportEmail] = useState('hello@styli.co.in');
+  const [autoApprove, setAutoApprove] = useState(false);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Settings</h1>
+          <div className="page-sub">Platform-wide configuration. Superadmin only.</div>
+        </div>
+      </div>
+      <div className="panel" style={{ padding: 24, maxWidth: 640 }}>
+        <div className="field" style={{ marginBottom: 16 }}>
+          <label className="field-label">Site name</label>
+          <input className="field-input" value={siteName} onChange={e => setSiteName(e.target.value)} disabled={!canEdit} />
+        </div>
+        <div className="field" style={{ marginBottom: 16 }}>
+          <label className="field-label">Support email</label>
+          <input className="field-input" value={supportEmail} onChange={e => setSupportEmail(e.target.value)} disabled={!canEdit} />
+        </div>
+        <div className="field" style={{ marginBottom: 16 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5 }}>
+            <input type="checkbox" checked={autoApprove} onChange={e => setAutoApprove(e.target.checked)} disabled={!canEdit} />
+            Auto-approve new vendor applications (skip review queue)
+          </label>
+        </div>
+        <button className={`btn btn-primary ${canEdit ? '' : 'btn-disabled-perm'}`} onClick={() => { if (canEdit) addToast('Settings saved', 'success'); }}>Save settings</button>
+        {!canEdit && <div className="perm-hint">Read-only — Superadmin role required.</div>}
+      </div>
+    </div>
+  );
+}
+
 // ============ VENDOR DASHBOARD ============
 function VendorDashboard({ onNav }) {
   const { state } = useApp();
@@ -2530,6 +3103,8 @@ const ROUTES = {
   'vendor-dashboard':{ path: '/vendor/dashboard' },
   'admin-login':     { path: '/admin/login' },
   'admin-dashboard': { path: '/admin' },
+  'team-login':      { path: '/team/login' },
+  'team-dashboard':  { path: '/team' },
 };
 
 // Convert URL path → route + param
@@ -2595,7 +3170,7 @@ function Router() {
     window.scrollTo(0, 0);
   };
 
-  const needsTopBar = !['landing','buyer-signup','buyer-login','vendor-login','vendor-apply','vendor-applied','vendor-pending','admin-login','buyer-onboard'].includes(route);
+  const needsTopBar = !['landing','buyer-signup','buyer-login','vendor-login','vendor-apply','vendor-applied','vendor-pending','admin-login','buyer-onboard','team-login','team-dashboard'].includes(route);
   const logout = () => { actions.logout(); addToast('Logged out', 'info'); nav('landing'); };
 
   return (
@@ -2623,6 +3198,8 @@ function Router() {
       {route === 'vendor-dashboard' && <VendorDashboard onNav={nav} />}
       {route === 'admin-login' && <AdminLogin onNav={nav} />}
       {route === 'admin-dashboard' && <AdminDashboard onNav={nav} />}
+      {route === 'team-login' && <TeamLogin onNav={nav} />}
+      {route === 'team-dashboard' && <TeamConsole onNav={nav} />}
     </div>
   );
 }
