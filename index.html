@@ -1369,6 +1369,36 @@ textarea.field-input { resize: vertical; min-height: 70px; }
 .col-grad-2 { background: linear-gradient(135deg, #1F2937, #5A4A3D); }
 .col-grad-3 { background: linear-gradient(135deg, #B8935E, #5A4A3D); }
 
+/* ======== PHOTO OVERLAY for category/editorial/collection/spotlight tiles ======== */
+.tile-photo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; z-index: 0;
+  opacity: 0; transition: opacity 0.5s ease;
+}
+.tile-photo.loaded { opacity: 1; }
+.home-cat-tile-img { overflow: hidden; }
+.home-editorial-card { overflow: hidden; }
+.home-collection-img { overflow: hidden; }
+.home-brand-spotlight-visual { overflow: hidden; }
+/* Ensure overlays/text remain on top of photos */
+.home-editorial-card::after { z-index: 1; }
+.home-collection::after { z-index: 1; }
+.home-cat-tile-img::after { z-index: 1; }
+.home-cat-tile-content, .home-editorial-content, .home-collection-content, .home-brand-spotlight-visual .home-hero-visual-tag { z-index: 2; }
+
+/* ======== STORY RING — photo support ======== */
+.home-story-img.with-photo { position: relative; overflow: hidden; }
+.home-story-img.with-photo img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+  opacity: 0; transition: opacity 0.4s ease;
+}
+.home-story-img.with-photo img.loaded { opacity: 1; }
+.home-story-img.with-photo .story-emoji {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; z-index: 2; pointer-events: none;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
 /* ======== BRAND OF THE DAY (large featured card) ======== */
 .home-brand-spotlight {
   display: grid; grid-template-columns: 1fr 1.4fr; gap: 32px; align-items: stretch;
@@ -1941,24 +1971,24 @@ function Landing({ onNav }) {
   const brandOfDayProducts = state.products.filter(p => p.vendorId === brandOfDay?.id && p.listed && p.approved);
   const brandOfDayGmv = state.orders.filter(o => o.vendorId === brandOfDay?.id).reduce((s, o) => s + o.price * o.qty, 0);
 
-  // Story tiles (Instagram-style) — categories with photos
+  // Story tiles (Instagram-style) — mix of men/women fashion
   const stories = [
-    { id: 'new', label: 'New In', emoji: '✨' },
-    { id: 'sale', label: 'Sale', emoji: '🔥' },
-    { id: 'kurtas', label: 'Kurtas', emoji: '👗' },
-    { id: 'dresses', label: 'Dresses', emoji: '👗' },
-    { id: 'workwear', label: 'Workwear', emoji: '💼' },
-    { id: 'casual', label: 'Casual', emoji: '☀️' },
-    { id: 'occasion', label: 'Occasion', emoji: '✨' },
+    { id: 'new',      label: 'New In',    emoji: '✨', photo: 'https://images.unsplash.com/photo-1485518882345-15568b007407?w=300&q=80&auto=format', seed: 'st-new' },
+    { id: 'sale',     label: 'Sale',      emoji: '🔥', photo: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&q=80&auto=format', seed: 'st-sale' },
+    { id: 'women',    label: 'Women',     emoji: '🌸', photo: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=300&q=80&auto=format', seed: 'st-women' },
+    { id: 'men',      label: 'Men',       emoji: '🤵', photo: 'https://images.unsplash.com/photo-1551803091-e20673f15770?w=300&q=80&auto=format', seed: 'st-men' },
+    { id: 'workwear', label: 'Workwear',  emoji: '💼', photo: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=300&q=80&auto=format', seed: 'st-workwear' },
+    { id: 'casual',   label: 'Casual',    emoji: '☀️', photo: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=300&q=80&auto=format', seed: 'st-casual' },
+    { id: 'occasion', label: 'Occasion',  emoji: '✨', photo: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=300&q=80&auto=format', seed: 'st-occasion' },
   ];
 
   const categories = [
-    { id: 'Kurtas', label: 'Kurtas & Sets', sub: 'Indian', grad: 'cat-grad-1' },
-    { id: 'Dresses', label: 'Dresses', sub: 'Western', grad: 'cat-grad-2' },
-    { id: 'Shirts', label: 'Shirts', sub: 'Everyday', grad: 'cat-grad-3' },
-    { id: 'Trousers', label: 'Bottoms', sub: 'Trousers · Pants', grad: 'cat-grad-4' },
-    { id: 'Tops', label: 'Tops & Tees', sub: 'Casual', grad: 'cat-grad-5' },
-    { id: 'all', label: 'Everything', sub: 'View all', grad: 'cat-grad-6' },
+    { id: 'Kurtas',   label: 'Women · Kurtas',  sub: 'Indian',           grad: 'cat-grad-1', photo: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&q=80&auto=format', seed: 'cat-kurta' },
+    { id: 'Shirts',   label: 'Men · Shirts',    sub: 'Everyday',         grad: 'cat-grad-3', photo: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&q=80&auto=format', seed: 'cat-mens-shirt' },
+    { id: 'Dresses',  label: 'Women · Dresses', sub: 'Western',          grad: 'cat-grad-2', photo: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=600&q=80&auto=format', seed: 'cat-dress' },
+    { id: 'Trousers', label: 'Bottoms',          sub: 'Trousers · Pants', grad: 'cat-grad-4', photo: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=600&q=80&auto=format', seed: 'cat-pants' },
+    { id: 'Tops',     label: 'Tops & Tees',      sub: 'Casual',           grad: 'cat-grad-5', photo: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&q=80&auto=format', seed: 'cat-tops' },
+    { id: 'all',      label: 'Everything',       sub: 'Shop all',         grad: 'cat-grad-6', photo: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&q=80&auto=format', seed: 'cat-all' },
   ];
 
   return (
@@ -2117,8 +2147,15 @@ function Landing({ onNav }) {
             <button key={s.id} className="home-story" onClick={() => onNav('buyer-shop')}>
               <div className="home-story-ring">
                 <div className="home-story-ring-inner">
-                  <div className="home-story-img" style={{ background: 'linear-gradient(135deg, var(--rose-light), var(--gold-light))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
-                    {s.emoji}
+                  <div className="home-story-img with-photo" style={{ background: 'linear-gradient(135deg, var(--rose-light), var(--gold-light))' }}>
+                    <img
+                      src={s.photo}
+                      alt={s.label}
+                      loading="lazy"
+                      onLoad={e => e.currentTarget.classList.add('loaded')}
+                      onError={imgFallback(s.seed)}
+                    />
+                    <span className="story-emoji">{s.emoji}</span>
                   </div>
                 </div>
               </div>
@@ -2150,7 +2187,16 @@ function Landing({ onNav }) {
         <div className="home-categories">
           {categories.map(cat => (
             <button key={cat.id} className="home-cat-tile" onClick={() => onNav('buyer-shop')}>
-              <div className={`home-cat-tile-img ${cat.grad}`}></div>
+              <div className={`home-cat-tile-img ${cat.grad}`}>
+                <img
+                  src={cat.photo}
+                  alt={cat.label}
+                  loading="lazy"
+                  className="tile-photo"
+                  onLoad={e => e.currentTarget.classList.add('loaded')}
+                  onError={imgFallback(cat.seed)}
+                />
+              </div>
               <div className="home-cat-tile-content">
                 <div className="lbl">{cat.label}</div>
                 <div className="sub">{cat.sub}</div>
@@ -2210,15 +2256,31 @@ function Landing({ onNav }) {
         </div>
         <div className="home-editorial">
           <div className="home-editorial-card home-editorial-bg-1" onClick={() => onNav('buyer-shop')}>
+            <img
+              src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=900&q=80&auto=format"
+              alt="Heritage Edit"
+              loading="lazy"
+              className="tile-photo"
+              onLoad={e => e.currentTarget.classList.add('loaded')}
+              onError={imgFallback('ed-heritage')}
+            />
             <div className="home-editorial-content">
-              <div className="home-editorial-eyebrow">Volume 04</div>
+              <div className="home-editorial-eyebrow">Volume 04 · Women</div>
               <div className="home-editorial-title">Heritage in motion: hand-block prints meet contemporary cuts</div>
               <div className="home-editorial-cta">Read the edit</div>
             </div>
           </div>
           <div className="home-editorial-card home-editorial-bg-2" onClick={() => onNav('buyer-shop')}>
+            <img
+              src="https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=900&q=80&auto=format"
+              alt="Linen luxury"
+              loading="lazy"
+              className="tile-photo"
+              onLoad={e => e.currentTarget.classList.add('loaded')}
+              onError={imgFallback('ed-linen')}
+            />
             <div className="home-editorial-content">
-              <div className="home-editorial-eyebrow">Spring 2026</div>
+              <div className="home-editorial-eyebrow">Spring 2026 · Men</div>
               <div className="home-editorial-title">Linen's quiet luxury: what to wear when the heat sets in</div>
               <div className="home-editorial-cta">Explore the season</div>
             </div>
@@ -2253,25 +2315,52 @@ function Landing({ onNav }) {
         </div>
         <div className="home-collections">
           <div className="home-collection" onClick={() => onNav('buyer-shop')}>
-            <div className="home-collection-img col-grad-1"></div>
+            <div className="home-collection-img col-grad-1">
+              <img
+                src="https://images.unsplash.com/photo-1551803091-e20673f15770?w=900&q=80&auto=format"
+                alt="Workwear Edit"
+                loading="lazy"
+                className="tile-photo"
+                onLoad={e => e.currentTarget.classList.add('loaded')}
+                onError={imgFallback('col-workwear')}
+              />
+            </div>
             <div className="home-collection-content">
-              <div className="home-collection-eyebrow">Edit · 24 pieces</div>
+              <div className="home-collection-eyebrow">Men + Women · 24 pieces</div>
               <div className="home-collection-title">The Workwear Edit</div>
               <div className="home-collection-meta">Polished pieces for the office and beyond</div>
             </div>
           </div>
           <div className="home-collection" onClick={() => onNav('buyer-shop')}>
-            <div className="home-collection-img col-grad-2"></div>
+            <div className="home-collection-img col-grad-2">
+              <img
+                src="https://images.unsplash.com/photo-1612722432474-b971cdcea546?w=900&q=80&auto=format"
+                alt="Date Night Drama"
+                loading="lazy"
+                className="tile-photo"
+                onLoad={e => e.currentTarget.classList.add('loaded')}
+                onError={imgFallback('col-datenight')}
+              />
+            </div>
             <div className="home-collection-content">
-              <div className="home-collection-eyebrow">Edit · 18 pieces</div>
+              <div className="home-collection-eyebrow">Women · 18 pieces</div>
               <div className="home-collection-title">Date Night Drama</div>
               <div className="home-collection-meta">Statement pieces for evenings out</div>
             </div>
           </div>
           <div className="home-collection" onClick={() => onNav('buyer-shop')}>
-            <div className="home-collection-img col-grad-3"></div>
+            <div className="home-collection-img col-grad-3">
+              <img
+                src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=900&q=80&auto=format"
+                alt="Festive Heritage"
+                loading="lazy"
+                className="tile-photo"
+                onLoad={e => e.currentTarget.classList.add('loaded')}
+                onError={imgFallback('col-festive')}
+              />
+            </div>
             <div className="home-collection-content">
-              <div className="home-collection-eyebrow">Edit · 32 pieces</div>
+              <div className="home-collection-eyebrow">Men + Women · 32 pieces</div>
               <div className="home-collection-title">Festive Heritage</div>
               <div className="home-collection-meta">Hand-crafted ethnic wear from across India</div>
             </div>
@@ -2284,7 +2373,15 @@ function Landing({ onNav }) {
         <section className="home-section">
           <div className="home-brand-spotlight">
             <div className="home-brand-spotlight-visual">
-              <div className="home-hero-visual-tag">
+              <img
+                src="https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=900&q=80&auto=format"
+                alt={brandOfDay.name}
+                loading="lazy"
+                className="tile-photo"
+                onLoad={e => e.currentTarget.classList.add('loaded')}
+                onError={imgFallback('brand-spotlight')}
+              />
+              <div className="home-hero-visual-tag" style={{ zIndex: 3 }}>
                 <div>
                   <div className="ht-title">{brandOfDay.name}</div>
                   <div className="ht-sub">{brandOfDay.city}</div>
