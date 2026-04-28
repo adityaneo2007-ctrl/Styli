@@ -1368,15 +1368,15 @@ const defaultState = () => ({
     { id: 'v-urban', email: 'hello@urbanloom.in', password: 'demo123', name: 'Urban Loom', type: 'medium', gst: '07AABCU5678R1ZL', city: 'Delhi', phone: '9876543214', status: 'pending', appliedAt: '19 Apr 2026' },
   ],
   products: [
-    { id: 'p-001', vendorId: 'v-kavya', name: 'Block Print Kurta', category: 'Kurtas', grad: 'grad-1', imageUrl: 'https://image.pollinations.ai/prompt/indian%20woman%20wearing%20rust%20orange%20block%20print%20cotton%20kurta%20editorial%20fashion%20photography%20minimal%20cream%20background%20natural%20light%20full%20body?width=600&height=800&nologo=true&seed=101', sizes: ['S','M','L','XL'], price: 1599, originalPrice: 2200, tags: ['A-line','Cotton','Casual','Block print','Warm tones'], description: 'Hand-block printed cotton kurta with A-line silhouette. Made in Jaipur.', stock: { S: 12, M: 18, L: 8, XL: 4 }, listed: true, recommended: 8240, clicks: 184, approved: true, rating: 4.6, reviewCount: 247, isNew: false, isExclusive: true },
-    { id: 'p-002', vendorId: 'v-kavya', name: 'Cotton Palazzo Pants', category: 'Trousers', grad: 'grad-4', imageUrl: 'https://image.pollinations.ai/prompt/woman%20wearing%20cream%20beige%20cotton%20palazzo%20pants%20editorial%20fashion%20minimal%20background%20full%20body%20natural%20light?width=600&height=800&nologo=true&seed=102', sizes: ['S','M','L'], price: 1299, tags: ['Relaxed','Cotton','Casual'], description: 'Wide-leg cotton palazzo pants with elastic waistband', stock: { S: 4, M: 3, L: 1 }, listed: true, recommended: 5890, clicks: 118, approved: true, rating: 4.4, reviewCount: 132, isNew: true, isExclusive: false },
-    { id: 'p-003', vendorId: 'v-kavya', name: 'Tiered Cotton Dress', category: 'Dresses', grad: 'grad-7', imageUrl: 'https://image.pollinations.ai/prompt/woman%20wearing%20pink%20tiered%20cotton%20midi%20dress%20floral%20pattern%20editorial%20fashion%20natural%20light%20soft%20background?width=600&height=800&nologo=true&seed=103', sizes: ['XS','S','M','L'], price: 2199, originalPrice: 2899, tags: ['A-line','Cotton','Floral'], description: 'Three-tier midi dress in soft cotton', stock: { XS: 6, S: 9, M: 8, L: 5 }, listed: true, recommended: 1240, clicks: 62, approved: true, rating: 4.8, reviewCount: 89, isNew: true, isExclusive: false },
-    { id: 'p-004', vendorId: 'v-kavya', name: 'Hand-Block Print Top', category: 'Tops', grad: 'grad-3', imageUrl: 'https://image.pollinations.ai/prompt/indian%20woman%20wearing%20loose%20fit%20hand%20block%20print%20cotton%20top%20warm%20earth%20tones%20editorial%20fashion%20photography%20minimal?width=600&height=800&nologo=true&seed=104', sizes: ['S','M','L'], price: 1850, tags: ['Relaxed','Cotton','Hand-block','Warm tones'], description: 'Loose-fit top with hand-block print', stock: { S: 1, M: 2, L: 0 }, listed: true, recommended: 6120, clicks: 142, approved: true, rating: 4.7, reviewCount: 203, isNew: false, isExclusive: true },
-    { id: 'p-005', vendorId: 'v-hm', name: 'Relaxed Linen Shirt', category: 'Shirts', grad: 'grad-5', imageUrl: 'https://image.pollinations.ai/prompt/man%20wearing%20beige%20relaxed%20linen%20button%20down%20shirt%20summer%20editorial%20fashion%20minimal%20neutral%20background?width=600&height=800&nologo=true&seed=105', sizes: ['S','M','L','XL'], price: 1999, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Breathable linen button-down for everyday', stock: { S: 24, M: 32, L: 18, XL: 8 }, listed: true, recommended: 12800, clicks: 380, approved: true, rating: 4.5, reviewCount: 412, isNew: false, isExclusive: false },
-    { id: 'p-006', vendorId: 'v-hm', name: 'Slim Fit Oxford Shirt', category: 'Shirts', grad: 'grad-10', imageUrl: 'https://image.pollinations.ai/prompt/man%20wearing%20crisp%20white%20slim%20fit%20oxford%20cotton%20shirt%20classic%20business%20editorial%20fashion%20minimal%20background?width=600&height=800&nologo=true&seed=106', sizes: ['S','M','L','XL'], price: 1799, originalPrice: 2299, tags: ['Slim fit','Cotton','Formal','Cool tones'], description: 'Classic Oxford cotton shirt, slim fit', stock: { S: 18, M: 26, L: 22, XL: 12 }, listed: true, recommended: 9400, clicks: 290, approved: true, rating: 4.3, reviewCount: 318, isNew: false, isExclusive: false },
-    { id: 'p-007', vendorId: 'v-hm', name: 'Cotton Poplin Midi Dress', category: 'Dresses', grad: 'grad-7', imageUrl: 'https://image.pollinations.ai/prompt/woman%20wearing%20solid%20cream%20color%20cotton%20poplin%20midi%20dress%20structured%20silhouette%20editorial%20fashion%20photography%20minimal?width=600&height=800&nologo=true&seed=107', sizes: ['XS','S','M','L'], price: 3290, tags: ['A-line','Cotton','Solid'], description: 'Structured midi dress in cotton poplin', stock: { XS: 8, S: 12, M: 10, L: 6 }, listed: true, recommended: 4200, clicks: 128, approved: true, rating: 4.6, reviewCount: 156, isNew: true, isExclusive: false },
-    { id: 'p-008', vendorId: 'v-souled', name: 'Linen Camp Collar Shirt', category: 'Shirts', grad: 'grad-4', imageUrl: 'https://image.pollinations.ai/prompt/man%20wearing%20cream%20linen%20camp%20collar%20shirt%20resort%20vacation%20style%20editorial%20fashion%20natural%20light?width=600&height=800&nologo=true&seed=108', sizes: ['S','M','L','XL'], price: 1499, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Resort-style camp collar linen shirt', stock: { S: 16, M: 22, L: 14, XL: 6 }, listed: true, recommended: 7800, clicks: 234, approved: true, rating: 4.4, reviewCount: 268, isNew: false, isExclusive: false },
-    { id: 'p-009', vendorId: 'v-souled', name: 'Oversized Cotton Tee', category: 'Tops', grad: 'grad-6', imageUrl: 'https://image.pollinations.ai/prompt/oversized%20heavyweight%20white%20cotton%20t-shirt%20streetwear%20casual%20fashion%20editorial%20minimal%20neutral%20background?width=600&height=800&nologo=true&seed=109', sizes: ['S','M','L','XL'], price: 899, originalPrice: 1199, tags: ['Relaxed','Cotton','Casual'], description: 'Heavyweight oversized cotton t-shirt', stock: { S: 28, M: 34, L: 22, XL: 14 }, listed: true, recommended: 10200, clicks: 310, approved: true, rating: 4.5, reviewCount: 521, isNew: false, isExclusive: false },
+    { id: 'p-001', vendorId: 'v-kavya', name: 'Block Print Kurta', category: 'Kurtas', grad: 'grad-1', imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&q=80&auto=format', sizes: ['S','M','L','XL'], price: 1599, originalPrice: 2200, tags: ['A-line','Cotton','Casual','Block print','Warm tones'], description: 'Hand-block printed cotton kurta with A-line silhouette. Made in Jaipur.', stock: { S: 12, M: 18, L: 8, XL: 4 }, listed: true, recommended: 8240, clicks: 184, approved: true, rating: 4.6, reviewCount: 247, isNew: false, isExclusive: true },
+    { id: 'p-002', vendorId: 'v-kavya', name: 'Cotton Palazzo Pants', category: 'Trousers', grad: 'grad-4', imageUrl: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=600&q=80&auto=format', sizes: ['S','M','L'], price: 1299, tags: ['Relaxed','Cotton','Casual'], description: 'Wide-leg cotton palazzo pants with elastic waistband', stock: { S: 4, M: 3, L: 1 }, listed: true, recommended: 5890, clicks: 118, approved: true, rating: 4.4, reviewCount: 132, isNew: true, isExclusive: false },
+    { id: 'p-003', vendorId: 'v-kavya', name: 'Tiered Cotton Dress', category: 'Dresses', grad: 'grad-7', imageUrl: 'https://images.unsplash.com/photo-1612722432474-b971cdcea546?w=600&q=80&auto=format', sizes: ['XS','S','M','L'], price: 2199, originalPrice: 2899, tags: ['A-line','Cotton','Floral'], description: 'Three-tier midi dress in soft cotton', stock: { XS: 6, S: 9, M: 8, L: 5 }, listed: true, recommended: 1240, clicks: 62, approved: true, rating: 4.8, reviewCount: 89, isNew: true, isExclusive: false },
+    { id: 'p-004', vendorId: 'v-kavya', name: 'Hand-Block Print Top', category: 'Tops', grad: 'grad-3', imageUrl: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&q=80&auto=format', sizes: ['S','M','L'], price: 1850, tags: ['Relaxed','Cotton','Hand-block','Warm tones'], description: 'Loose-fit top with hand-block print', stock: { S: 1, M: 2, L: 0 }, listed: true, recommended: 6120, clicks: 142, approved: true, rating: 4.7, reviewCount: 203, isNew: false, isExclusive: true },
+    { id: 'p-005', vendorId: 'v-hm', name: 'Relaxed Linen Shirt', category: 'Shirts', grad: 'grad-5', imageUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&q=80&auto=format', sizes: ['S','M','L','XL'], price: 1999, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Breathable linen button-down for everyday', stock: { S: 24, M: 32, L: 18, XL: 8 }, listed: true, recommended: 12800, clicks: 380, approved: true, rating: 4.5, reviewCount: 412, isNew: false, isExclusive: false },
+    { id: 'p-006', vendorId: 'v-hm', name: 'Slim Fit Oxford Shirt', category: 'Shirts', grad: 'grad-10', imageUrl: 'https://images.unsplash.com/photo-1551803091-e20673f15770?w=600&q=80&auto=format', sizes: ['S','M','L','XL'], price: 1799, originalPrice: 2299, tags: ['Slim fit','Cotton','Formal','Cool tones'], description: 'Classic Oxford cotton shirt, slim fit', stock: { S: 18, M: 26, L: 22, XL: 12 }, listed: true, recommended: 9400, clicks: 290, approved: true, rating: 4.3, reviewCount: 318, isNew: false, isExclusive: false },
+    { id: 'p-007', vendorId: 'v-hm', name: 'Cotton Poplin Midi Dress', category: 'Dresses', grad: 'grad-7', imageUrl: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=600&q=80&auto=format', sizes: ['XS','S','M','L'], price: 3290, tags: ['A-line','Cotton','Solid'], description: 'Structured midi dress in cotton poplin', stock: { XS: 8, S: 12, M: 10, L: 6 }, listed: true, recommended: 4200, clicks: 128, approved: true, rating: 4.6, reviewCount: 156, isNew: true, isExclusive: false },
+    { id: 'p-008', vendorId: 'v-souled', name: 'Linen Camp Collar Shirt', category: 'Shirts', grad: 'grad-4', imageUrl: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&q=80&auto=format', sizes: ['S','M','L','XL'], price: 1499, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Resort-style camp collar linen shirt', stock: { S: 16, M: 22, L: 14, XL: 6 }, listed: true, recommended: 7800, clicks: 234, approved: true, rating: 4.4, reviewCount: 268, isNew: false, isExclusive: false },
+    { id: 'p-009', vendorId: 'v-souled', name: 'Oversized Cotton Tee', category: 'Tops', grad: 'grad-6', imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&q=80&auto=format', sizes: ['S','M','L','XL'], price: 899, originalPrice: 1199, tags: ['Relaxed','Cotton','Casual'], description: 'Heavyweight oversized cotton t-shirt', stock: { S: 28, M: 34, L: 22, XL: 14 }, listed: true, recommended: 10200, clicks: 310, approved: true, rating: 4.5, reviewCount: 521, isNew: false, isExclusive: false },
   ],
   orders: [
     { id: 'SY-8842', vendorId: 'v-kavya', buyerId: 'buyer-demo', productId: 'p-001', size: 'M', qty: 1, price: 1599, buyer: 'Ananya S.', city: 'Delhi', pin: '110017', status: 'to-ship', placed: '19 Apr, 2:14 PM', dispatchByHrs: 6 },
@@ -1654,25 +1654,53 @@ function TopBar({ onNav, currentUser, onLogout }) {
   );
 }
 
-// ============ PRODUCT IMAGE (real photo with gradient fallback) ============
+// ============ PRODUCT IMAGE (real photo with auto-fallback) ============
+// Tries product.imageUrl first → falls back to Picsum (guaranteed to load) → falls back to gradient
 function ProductImage({ product, className = '' }) {
   const [loaded, setLoaded] = useState(false);
-  const [errored, setErrored] = useState(false);
+  const [src, setSrc] = useState(product?.imageUrl);
+  const [fellback, setFellback] = useState(false);
+
   if (!product) return <div className={className}></div>;
+
+  const handleError = () => {
+    if (!fellback) {
+      setFellback(true);
+      setLoaded(false);
+      setSrc(`https://picsum.photos/seed/styli-${product.id}/600/800`);
+    } else {
+      setSrc(null); // both failed; gradient shows
+    }
+  };
+
   return (
     <div className={`${className} ${product.grad || ''}`}>
-      {product.imageUrl && !errored && (
+      {src && (
         <img
-          src={product.imageUrl}
+          src={src}
           alt={product.name}
           loading="lazy"
           className={loaded ? 'loaded' : ''}
           onLoad={() => setLoaded(true)}
-          onError={() => setErrored(true)}
+          onError={handleError}
         />
       )}
     </div>
   );
+}
+
+// ============ IMG FALLBACK HELPER for inline <img> tags ============
+// Use as: onError={imgFallback('p-001')}
+function imgFallback(productId) {
+  return (e) => {
+    const t = e.currentTarget;
+    if (!t.dataset.fellback) {
+      t.dataset.fellback = '1';
+      t.src = `https://picsum.photos/seed/styli-${productId}/600/800`;
+    } else {
+      t.style.display = 'none';
+    }
+  };
 }
 
 // ============ RECENTLY VIEWED — small helper module ============
@@ -2773,7 +2801,7 @@ function BuyerShop({ onNav }) {
             return (
               <button key={p.id} className="product-card" onClick={() => { onNav('buyer-product', p.id); }}>
                 <div className={`product-image ${p.grad}`}>
-                  {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+                  {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} onError={imgFallback(p.id)} />}
                   <div className="match-badge">{p.match}% match</div>
                   <button
                     className={`wish-btn ${wished ? 'active' : ''}`}
@@ -2825,7 +2853,7 @@ function BuyerProduct({ onNav, productId }) {
         </div>
         <div className="product-detail" style={{ padding: 0 }}>
           <div className={`detail-image-large ${p.grad}`}>
-            {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+            {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} onError={imgFallback(p.id)} />}
           </div>
           <div>
             <div className="detail-brand">{v?.name || 'Brand'}</div>
@@ -2912,7 +2940,7 @@ function BuyerCart({ onNav }) {
             {items.map(it => (
               <div key={it.productId + it.size} className="cart-item">
                 <div className={`cart-item-img ${it.product.grad}`}>
-                  {it.product.imageUrl && <img src={it.product.imageUrl} alt={it.product.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+                  {it.product.imageUrl && <img src={it.product.imageUrl} alt={it.product.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} onError={imgFallback(it.product.id)} />}
                 </div>
                 <div className="cart-item-info">
                   <div className="cart-item-brand">{it.vendor?.name}</div>
@@ -2987,7 +3015,7 @@ function BuyerOrders({ onNav }) {
                 <div className="flex-between">
                   <div className="product-row">
                     <div className={`product-thumb ${p?.grad || 'grad-1'}`} style={{ width: 60, height: 60 }}>
-                      {p?.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+                      {p?.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} onError={imgFallback(p.id)} />}
                     </div>
                     <div>
                       <div className="cell-primary" style={{ fontSize: 15 }}>{p?.name || o.productId}</div>
@@ -3112,7 +3140,7 @@ function BuyerWishlist({ onNav }) {
               return (
                 <div key={p.id} className="product-card" style={{ cursor: 'default' }}>
                   <div className={`product-image ${p.grad}`}>
-                    {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+                    {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} onError={imgFallback(p.id)} />}
                     <button
                       className="wish-btn active"
                       onClick={(e) => { e.stopPropagation(); actions.toggleWishlist(p.id); addToast('Removed from wishlist', 'info'); }}
