@@ -14,9 +14,12 @@
   --muted: #8A817A; --line: #E8E0D2; --line-soft: #F0E9DC;
   --rose: #C97B63; --rose-deep: #A85A42; --rose-light: #F3DDD2; --rose-faint: #FBF0EA;
   --sage: #7A8871; --sage-light: #E3E9DF;
-  --gold: #B8935E; --gold-light: #F0E3CC;
+  --gold: #B8935E; --gold-light: #F0E3CC; --gold-deep: #8B6F40;
   --alert: #C8553D; --alert-light: #F9E4DE;
   --ok: #5A7A52; --ok-light: #E0EAD9;
+  /* Luxury accents — added for the new homepage */
+  --navy: #1F2937; --navy-soft: #374151; --navy-deep: #0F172A;
+  --sale: #B91C1C; --sale-light: #FEE2E2;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
@@ -691,6 +694,451 @@ textarea.field-input { resize: vertical; min-height: 70px; }
 .vendor-card-admin .vc-detail { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 14px; }
 .vc-detail-item .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .vc-detail-item .val { font-size: 13px; color: var(--ink); margin-top: 2px; }
+
+/* ============================================================
+   ======== HOMEPAGE — NEW LUXURY DESIGN (April 2026) =========
+   ============================================================ */
+
+/* Sticky homepage navigation */
+.home-nav {
+  position: sticky; top: 0; z-index: 60;
+  background: rgba(251, 248, 243, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.home-nav-inner {
+  max-width: 1440px; margin: 0 auto;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 32px;
+  padding: 16px 36px;
+}
+.home-nav-brand { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 500; letter-spacing: -0.04em; color: var(--ink); cursor: pointer; }
+.home-nav-brand .dot { color: var(--rose); }
+.home-nav-links { display: flex; gap: 28px; align-items: center; justify-self: start; margin-left: 24px; }
+.home-nav-link {
+  font-size: 13px; color: var(--ink-soft); cursor: pointer; padding: 6px 0;
+  border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.home-nav-link:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.home-nav-link.sale { color: var(--sale); }
+.home-nav-search {
+  display: flex; align-items: center; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 100px; padding: 9px 16px; min-width: 280px; max-width: 380px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.home-nav-search:focus-within { border-color: var(--ink-soft); box-shadow: 0 0 0 3px rgba(26, 22, 18, 0.05); }
+.home-nav-search input {
+  border: none; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: var(--ink);
+  flex: 1; min-width: 0;
+}
+.home-nav-search input::placeholder { color: var(--muted); }
+.home-nav-search-icon { color: var(--muted); margin-right: 8px; font-size: 14px; }
+.home-nav-icons { display: flex; align-items: center; gap: 14px; }
+.home-nav-icon-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: transparent; border: 1px solid transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; color: var(--ink-soft); position: relative;
+  transition: all 0.15s;
+}
+.home-nav-icon-btn:hover { background: var(--cream); color: var(--ink); }
+.home-nav-icon-btn .icon-glyph { font-size: 16px; }
+.home-nav-icon-btn .icon-count {
+  position: absolute; top: -2px; right: -2px;
+  background: var(--rose-deep); color: white; font-size: 10px; font-weight: 600;
+  min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px;
+  display: flex; align-items: center; justify-content: center;
+}
+.home-nav-cta {
+  padding: 9px 20px; background: var(--ink); color: var(--cream-light);
+  border: none; border-radius: 100px; font-size: 12px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+}
+.home-nav-cta:hover { background: var(--navy-deep); }
+
+/* Hero section */
+.home-hero {
+  max-width: 1440px; margin: 0 auto;
+  padding: 56px 36px 80px;
+  display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center;
+}
+.home-hero-content { padding-right: 24px; }
+.home-hero-tag {
+  display: inline-block; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--rose-deep); padding: 4px 12px; border: 1px solid var(--rose-light);
+  border-radius: 100px; background: var(--rose-faint); margin-bottom: 24px;
+  font-weight: 500;
+}
+.home-hero-title {
+  font-family: 'Fraunces', serif; font-size: 88px; line-height: 0.95;
+  letter-spacing: -0.04em; font-weight: 400; color: var(--ink); margin-bottom: 28px;
+}
+.home-hero-title em { font-style: italic; color: var(--rose-deep); font-weight: 500; }
+.home-hero-lead {
+  font-size: 17px; line-height: 1.55; color: var(--ink-soft); max-width: 480px; margin-bottom: 36px;
+}
+.home-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-luxe {
+  padding: 14px 28px; background: var(--ink); color: var(--cream-light);
+  border: none; border-radius: 100px; font-size: 13px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; font-family: inherit;
+  transition: transform 0.15s, background 0.15s;
+}
+.btn-luxe:hover { background: var(--navy-deep); transform: translateY(-1px); }
+.btn-luxe-outline {
+  padding: 13px 27px; background: transparent; color: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 100px; font-size: 13px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.btn-luxe-outline:hover { background: var(--ink); color: var(--cream-light); }
+.home-hero-trust {
+  display: flex; gap: 32px; margin-top: 44px; padding-top: 28px; border-top: 1px solid var(--line-soft);
+}
+.home-hero-trust-item .num {
+  font-family: 'Fraunces', serif; font-size: 28px; font-weight: 500; color: var(--ink);
+}
+.home-hero-trust-item .lbl {
+  font-size: 11px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px;
+}
+.home-hero-visual {
+  aspect-ratio: 4/5; border-radius: 24px; overflow: hidden; position: relative;
+  background: linear-gradient(135deg, #E8C4B5 0%, #C97B63 60%, #A85A42 100%);
+  box-shadow: 0 30px 60px -20px rgba(168, 90, 66, 0.35);
+}
+.home-hero-visual::after {
+  content: ''; position: absolute; inset: 0;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence baseFrequency='0.85'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/></svg>");
+  mix-blend-mode: overlay;
+}
+.home-hero-visual-tag {
+  position: absolute; bottom: 32px; left: 32px; right: 32px;
+  background: rgba(26, 22, 18, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  color: var(--cream-light); padding: 18px 22px; border-radius: 14px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.home-hero-visual-tag .ht-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500; }
+.home-hero-visual-tag .ht-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; letter-spacing: 0.04em; }
+.home-hero-visual-tag .ht-arrow { font-size: 22px; }
+
+/* Section base styling */
+.home-section { max-width: 1440px; margin: 0 auto; padding: 64px 36px; }
+.home-section-head {
+  display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 36px;
+}
+.home-section-eyebrow {
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px; font-weight: 500;
+}
+.home-section-title {
+  font-family: 'Fraunces', serif; font-size: 44px; font-weight: 400;
+  letter-spacing: -0.02em; line-height: 1.05; color: var(--ink);
+}
+.home-section-title em { font-style: italic; color: var(--rose-deep); font-weight: 500; }
+.home-section-link {
+  font-size: 13px; color: var(--ink); cursor: pointer; padding: 8px 0;
+  border-bottom: 1.5px solid var(--ink); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.home-section-link:hover { color: var(--rose-deep); border-bottom-color: var(--rose-deep); }
+
+/* Categories — visual tile strip */
+.home-categories {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px;
+}
+.home-cat-tile {
+  aspect-ratio: 3/4; border-radius: 18px; overflow: hidden; position: relative;
+  cursor: pointer; transition: transform 0.25s; border: none; padding: 0;
+  font-family: inherit; color: inherit;
+}
+.home-cat-tile:hover { transform: translateY(-3px); }
+.home-cat-tile-img {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+}
+.home-cat-tile-img::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.7) 100%);
+}
+.home-cat-tile-content {
+  position: absolute; bottom: 16px; left: 16px; right: 16px; z-index: 2;
+  color: white; text-align: left;
+}
+.home-cat-tile-content .lbl {
+  font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500; letter-spacing: -0.01em;
+}
+.home-cat-tile-content .sub { font-size: 11px; opacity: 0.85; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
+
+/* Category gradient backgrounds for tiles */
+.cat-grad-1 { background: linear-gradient(135deg, #E8C4B5, #A85A42); }
+.cat-grad-2 { background: linear-gradient(135deg, #D4C8B8, #7A6F5A); }
+.cat-grad-3 { background: linear-gradient(135deg, #C9D4C4, #5A7A52); }
+.cat-grad-4 { background: linear-gradient(135deg, #E0CFC0, #8B6F40); }
+.cat-grad-5 { background: linear-gradient(135deg, #C7B5A8, #5A4A3D); }
+.cat-grad-6 { background: linear-gradient(135deg, #DDC9BC, #BB8868); }
+
+/* Trending products — refined product card */
+.home-products-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+}
+.home-product {
+  cursor: pointer; transition: transform 0.2s;
+  background: transparent; border: none; padding: 0; text-align: left; font-family: inherit; color: inherit;
+  position: relative;
+}
+.home-product:hover { transform: translateY(-3px); }
+.home-product-img {
+  width: 100%; aspect-ratio: 3/4; border-radius: 14px; margin-bottom: 14px;
+  position: relative; overflow: hidden;
+}
+.home-product-img::after {
+  content: ''; position: absolute; inset: 0;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.10'/></svg>");
+  mix-blend-mode: overlay;
+}
+.home-product-badges {
+  position: absolute; top: 10px; left: 10px; z-index: 2;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+}
+.product-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 8px; border-radius: 4px;
+}
+.product-badge.new { background: var(--ink); color: var(--cream-light); }
+.product-badge.sale { background: var(--sale); color: white; }
+.product-badge.exclusive { background: var(--gold-deep); color: white; }
+.home-product-wish {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: rgba(255, 255, 255, 0.95); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--muted);
+  transition: all 0.15s; font-family: inherit;
+}
+.home-product-wish:hover { background: white; color: var(--rose-deep); transform: scale(1.08); }
+.home-product-wish.active { background: var(--rose-faint); color: var(--rose-deep); }
+.home-product-wish.active::before { content: '♥'; }
+.home-product-wish:not(.active)::before { content: '♡'; }
+.home-product-brand {
+  font-size: 10px; color: var(--muted); letter-spacing: 0.16em; text-transform: uppercase;
+  margin-bottom: 4px; font-weight: 500;
+}
+.home-product-name {
+  font-size: 14.5px; color: var(--ink); margin-bottom: 6px; line-height: 1.35;
+  font-weight: 500;
+}
+.home-product-rating { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12px; }
+.home-product-rating .stars { color: var(--gold-deep); letter-spacing: 1px; }
+.home-product-rating .count { color: var(--muted); }
+.home-product-price-row { display: flex; align-items: baseline; gap: 8px; }
+.home-product-price {
+  font-family: 'Fraunces', serif; font-size: 17px; font-weight: 500; color: var(--ink);
+}
+.home-product-price-original {
+  font-size: 13px; color: var(--muted); text-decoration: line-through;
+}
+.home-product-price-discount {
+  font-size: 11px; color: var(--sale); font-weight: 600; letter-spacing: 0.04em;
+}
+.home-product-match {
+  position: absolute; bottom: 14px; left: 14px;
+  background: rgba(26, 22, 18, 0.85); color: var(--cream-light);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 8px; border-radius: 4px; backdrop-filter: blur(4px);
+}
+
+/* Why Styli — 3-step value prop */
+.home-why {
+  background: linear-gradient(180deg, var(--cream-light) 0%, var(--bg) 100%);
+  margin-top: 32px;
+}
+.home-why-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+.home-why-step {
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 18px;
+  padding: 36px 28px; position: relative;
+}
+.home-why-step-num {
+  font-family: 'Fraunces', serif; font-size: 13px; color: var(--rose-deep);
+  letter-spacing: 0.16em; text-transform: uppercase; font-weight: 500; margin-bottom: 16px;
+}
+.home-why-step-icon {
+  width: 48px; height: 48px; border-radius: 12px; background: var(--cream);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; margin-bottom: 20px;
+}
+.home-why-step h3 {
+  font-family: 'Fraunces', serif; font-size: 24px; font-weight: 500;
+  letter-spacing: -0.01em; color: var(--ink); margin-bottom: 10px;
+}
+.home-why-step p {
+  font-size: 14px; color: var(--ink-soft); line-height: 1.55;
+}
+
+/* Featured brands */
+.home-brands { background: var(--panel); border-radius: 24px; padding: 48px 40px; border: 1px solid var(--line-soft); }
+.home-brands-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 24px;
+}
+.home-brand-card {
+  background: var(--cream-light); border: 1px solid var(--line-soft); border-radius: 14px;
+  padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s;
+}
+.home-brand-card:hover { border-color: var(--ink-soft); transform: translateY(-2px); }
+.home-brand-logo {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fraunces', serif; font-size: 22px; font-weight: 500;
+  background: var(--cream); color: var(--ink);
+}
+.home-brand-name {
+  font-size: 13px; font-weight: 500; color: var(--ink); margin-bottom: 4px;
+}
+.home-brand-meta { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* Editorial / Look Book */
+.home-editorial {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch;
+}
+.home-editorial-card {
+  aspect-ratio: 16/10; border-radius: 20px; overflow: hidden; position: relative;
+  cursor: pointer; transition: transform 0.25s;
+}
+.home-editorial-card:hover { transform: scale(1.01); }
+.home-editorial-card.tall { aspect-ratio: 4/5; }
+.home-editorial-bg-1 { background: linear-gradient(135deg, #2C3E50, #5A4A3D 60%, #B8935E); }
+.home-editorial-bg-2 { background: linear-gradient(135deg, #C97B63, #E8C4B5 80%); }
+.home-editorial-content {
+  position: absolute; bottom: 28px; left: 28px; right: 28px; color: white; z-index: 2;
+}
+.home-editorial-card::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.55) 100%);
+}
+.home-editorial-eyebrow {
+  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.85; margin-bottom: 8px; font-weight: 500;
+}
+.home-editorial-title {
+  font-family: 'Fraunces', serif; font-size: 32px; font-weight: 500; line-height: 1.1; margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.home-editorial-cta { font-size: 13px; opacity: 0.95; }
+.home-editorial-cta::after { content: ' →'; }
+
+/* Newsletter */
+.home-newsletter {
+  background: var(--ink); color: var(--cream-light); border-radius: 24px;
+  padding: 64px 48px; text-align: center;
+  margin: 32px 0;
+}
+.home-newsletter-eyebrow {
+  font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--rose-light); margin-bottom: 16px; font-weight: 500;
+}
+.home-newsletter h2 {
+  font-family: 'Fraunces', serif; font-size: 44px; font-weight: 400;
+  letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 14px;
+}
+.home-newsletter h2 em { font-style: italic; color: var(--rose-light); font-weight: 500; }
+.home-newsletter p {
+  font-size: 15px; opacity: 0.7; max-width: 440px; margin: 0 auto 32px; line-height: 1.6;
+}
+.home-newsletter-form {
+  display: flex; max-width: 440px; margin: 0 auto; gap: 8px;
+}
+.home-newsletter-form input {
+  flex: 1; padding: 14px 22px; background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18); border-radius: 100px;
+  color: var(--cream-light); font-family: inherit; font-size: 14px;
+  outline: none; transition: border-color 0.15s;
+}
+.home-newsletter-form input::placeholder { color: rgba(245, 240, 232, 0.45); }
+.home-newsletter-form input:focus { border-color: rgba(255,255,255,0.4); }
+.home-newsletter-form button {
+  padding: 14px 28px; background: var(--cream-light); color: var(--ink);
+  border: none; border-radius: 100px; font-size: 13px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; font-family: inherit;
+}
+.home-newsletter-form button:hover { background: white; }
+
+/* Footer */
+.home-footer {
+  background: var(--cream-light); border-top: 1px solid var(--line-soft);
+  margin-top: 64px;
+}
+.home-footer-inner {
+  max-width: 1440px; margin: 0 auto; padding: 64px 36px 32px;
+}
+.home-footer-grid {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 56px;
+  padding-bottom: 48px; border-bottom: 1px solid var(--line-soft);
+}
+.home-footer-brand {
+  font-family: 'Fraunces', serif; font-size: 32px; font-weight: 500;
+  letter-spacing: -0.04em; color: var(--ink); margin-bottom: 16px;
+}
+.home-footer-brand .dot { color: var(--rose); }
+.home-footer-tagline {
+  font-size: 14px; color: var(--ink-soft); line-height: 1.55; max-width: 320px; margin-bottom: 20px;
+}
+.home-footer-social { display: flex; gap: 10px; }
+.home-footer-social-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--panel); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; cursor: pointer; color: var(--ink-soft); transition: all 0.15s;
+  font-family: inherit;
+}
+.home-footer-social-btn:hover { background: var(--ink); color: var(--cream-light); border-color: var(--ink); }
+.home-footer-col h4 {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink); margin-bottom: 16px;
+}
+.home-footer-col ul { list-style: none; padding: 0; }
+.home-footer-col li {
+  font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; cursor: pointer;
+  transition: color 0.15s;
+}
+.home-footer-col li:hover { color: var(--ink); }
+.home-footer-bottom {
+  padding-top: 28px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: var(--muted);
+}
+.home-footer-bottom-links { display: flex; gap: 18px; }
+.home-footer-bottom-links a {
+  color: var(--muted); cursor: pointer; transition: color 0.15s;
+}
+.home-footer-bottom-links a:hover { color: var(--ink); }
+
+/* Responsive — tablet */
+@media (max-width: 1100px) {
+  .home-hero { grid-template-columns: 1fr; gap: 32px; padding: 32px 24px 48px; }
+  .home-hero-content { padding-right: 0; }
+  .home-hero-title { font-size: 64px; }
+  .home-section { padding: 48px 24px; }
+  .home-section-title { font-size: 32px; }
+  .home-categories { grid-template-columns: repeat(3, 1fr); }
+  .home-products-grid { grid-template-columns: repeat(2, 1fr); }
+  .home-why-grid { grid-template-columns: 1fr; }
+  .home-brands-grid { grid-template-columns: repeat(3, 1fr); }
+  .home-editorial { grid-template-columns: 1fr; }
+  .home-footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+  .home-nav-links { display: none; }
+  .home-nav-search { min-width: auto; }
+  .home-newsletter h2 { font-size: 32px; }
+}
+
+@media (max-width: 700px) {
+  .home-nav-inner { grid-template-columns: auto auto; padding: 12px 16px; gap: 12px; }
+  .home-nav-search { display: none; }
+  .home-hero-title { font-size: 44px; }
+  .home-categories { grid-template-columns: repeat(2, 1fr); }
+  .home-products-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .home-brands-grid { grid-template-columns: repeat(2, 1fr); }
+  .home-footer-grid { grid-template-columns: 1fr; gap: 28px; }
+  .home-newsletter { padding: 40px 24px; }
+  .home-newsletter h2 { font-size: 26px; }
+  .home-newsletter-form { flex-direction: column; }
+}
 </style>
 </head>
 <body>
@@ -715,15 +1163,15 @@ const defaultState = () => ({
     { id: 'v-urban', email: 'hello@urbanloom.in', password: 'demo123', name: 'Urban Loom', type: 'medium', gst: '07AABCU5678R1ZL', city: 'Delhi', phone: '9876543214', status: 'pending', appliedAt: '19 Apr 2026' },
   ],
   products: [
-    { id: 'p-001', vendorId: 'v-kavya', name: 'Block Print Kurta', category: 'Kurtas', grad: 'grad-1', sizes: ['S','M','L','XL'], price: 1599, tags: ['A-line','Cotton','Casual','Block print','Warm tones'], description: 'Hand-block printed cotton kurta with A-line silhouette. Made in Jaipur.', stock: { S: 12, M: 18, L: 8, XL: 4 }, listed: true, recommended: 8240, clicks: 184, approved: true },
-    { id: 'p-002', vendorId: 'v-kavya', name: 'Cotton Palazzo Pants', category: 'Trousers', grad: 'grad-4', sizes: ['S','M','L'], price: 1299, tags: ['Relaxed','Cotton','Casual'], description: 'Wide-leg cotton palazzo pants with elastic waistband', stock: { S: 4, M: 3, L: 1 }, listed: true, recommended: 5890, clicks: 118, approved: true },
-    { id: 'p-003', vendorId: 'v-kavya', name: 'Tiered Cotton Dress', category: 'Dresses', grad: 'grad-7', sizes: ['XS','S','M','L'], price: 2199, tags: ['A-line','Cotton','Floral'], description: 'Three-tier midi dress in soft cotton', stock: { XS: 6, S: 9, M: 8, L: 5 }, listed: true, recommended: 1240, clicks: 62, approved: true },
-    { id: 'p-004', vendorId: 'v-kavya', name: 'Hand-Block Print Top', category: 'Tops', grad: 'grad-3', sizes: ['S','M','L'], price: 1850, tags: ['Relaxed','Cotton','Hand-block','Warm tones'], description: 'Loose-fit top with hand-block print', stock: { S: 1, M: 2, L: 0 }, listed: true, recommended: 6120, clicks: 142, approved: true },
-    { id: 'p-005', vendorId: 'v-hm', name: 'Relaxed Linen Shirt', category: 'Shirts', grad: 'grad-5', sizes: ['S','M','L','XL'], price: 1999, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Breathable linen button-down for everyday', stock: { S: 24, M: 32, L: 18, XL: 8 }, listed: true, recommended: 12800, clicks: 380, approved: true },
-    { id: 'p-006', vendorId: 'v-hm', name: 'Slim Fit Oxford Shirt', category: 'Shirts', grad: 'grad-10', sizes: ['S','M','L','XL'], price: 1799, tags: ['Slim fit','Cotton','Formal','Cool tones'], description: 'Classic Oxford cotton shirt, slim fit', stock: { S: 18, M: 26, L: 22, XL: 12 }, listed: true, recommended: 9400, clicks: 290, approved: true },
-    { id: 'p-007', vendorId: 'v-hm', name: 'Cotton Poplin Midi Dress', category: 'Dresses', grad: 'grad-7', sizes: ['XS','S','M','L'], price: 3290, tags: ['A-line','Cotton','Solid'], description: 'Structured midi dress in cotton poplin', stock: { XS: 8, S: 12, M: 10, L: 6 }, listed: true, recommended: 4200, clicks: 128, approved: true },
-    { id: 'p-008', vendorId: 'v-souled', name: 'Linen Camp Collar Shirt', category: 'Shirts', grad: 'grad-4', sizes: ['S','M','L','XL'], price: 1499, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Resort-style camp collar linen shirt', stock: { S: 16, M: 22, L: 14, XL: 6 }, listed: true, recommended: 7800, clicks: 234, approved: true },
-    { id: 'p-009', vendorId: 'v-souled', name: 'Oversized Cotton Tee', category: 'Tops', grad: 'grad-6', sizes: ['S','M','L','XL'], price: 899, tags: ['Relaxed','Cotton','Casual'], description: 'Heavyweight oversized cotton t-shirt', stock: { S: 28, M: 34, L: 22, XL: 14 }, listed: true, recommended: 10200, clicks: 310, approved: true },
+    { id: 'p-001', vendorId: 'v-kavya', name: 'Block Print Kurta', category: 'Kurtas', grad: 'grad-1', sizes: ['S','M','L','XL'], price: 1599, originalPrice: 2200, tags: ['A-line','Cotton','Casual','Block print','Warm tones'], description: 'Hand-block printed cotton kurta with A-line silhouette. Made in Jaipur.', stock: { S: 12, M: 18, L: 8, XL: 4 }, listed: true, recommended: 8240, clicks: 184, approved: true, rating: 4.6, reviewCount: 247, isNew: false, isExclusive: true },
+    { id: 'p-002', vendorId: 'v-kavya', name: 'Cotton Palazzo Pants', category: 'Trousers', grad: 'grad-4', sizes: ['S','M','L'], price: 1299, tags: ['Relaxed','Cotton','Casual'], description: 'Wide-leg cotton palazzo pants with elastic waistband', stock: { S: 4, M: 3, L: 1 }, listed: true, recommended: 5890, clicks: 118, approved: true, rating: 4.4, reviewCount: 132, isNew: true, isExclusive: false },
+    { id: 'p-003', vendorId: 'v-kavya', name: 'Tiered Cotton Dress', category: 'Dresses', grad: 'grad-7', sizes: ['XS','S','M','L'], price: 2199, originalPrice: 2899, tags: ['A-line','Cotton','Floral'], description: 'Three-tier midi dress in soft cotton', stock: { XS: 6, S: 9, M: 8, L: 5 }, listed: true, recommended: 1240, clicks: 62, approved: true, rating: 4.8, reviewCount: 89, isNew: true, isExclusive: false },
+    { id: 'p-004', vendorId: 'v-kavya', name: 'Hand-Block Print Top', category: 'Tops', grad: 'grad-3', sizes: ['S','M','L'], price: 1850, tags: ['Relaxed','Cotton','Hand-block','Warm tones'], description: 'Loose-fit top with hand-block print', stock: { S: 1, M: 2, L: 0 }, listed: true, recommended: 6120, clicks: 142, approved: true, rating: 4.7, reviewCount: 203, isNew: false, isExclusive: true },
+    { id: 'p-005', vendorId: 'v-hm', name: 'Relaxed Linen Shirt', category: 'Shirts', grad: 'grad-5', sizes: ['S','M','L','XL'], price: 1999, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Breathable linen button-down for everyday', stock: { S: 24, M: 32, L: 18, XL: 8 }, listed: true, recommended: 12800, clicks: 380, approved: true, rating: 4.5, reviewCount: 412, isNew: false, isExclusive: false },
+    { id: 'p-006', vendorId: 'v-hm', name: 'Slim Fit Oxford Shirt', category: 'Shirts', grad: 'grad-10', sizes: ['S','M','L','XL'], price: 1799, originalPrice: 2299, tags: ['Slim fit','Cotton','Formal','Cool tones'], description: 'Classic Oxford cotton shirt, slim fit', stock: { S: 18, M: 26, L: 22, XL: 12 }, listed: true, recommended: 9400, clicks: 290, approved: true, rating: 4.3, reviewCount: 318, isNew: false, isExclusive: false },
+    { id: 'p-007', vendorId: 'v-hm', name: 'Cotton Poplin Midi Dress', category: 'Dresses', grad: 'grad-7', sizes: ['XS','S','M','L'], price: 3290, tags: ['A-line','Cotton','Solid'], description: 'Structured midi dress in cotton poplin', stock: { XS: 8, S: 12, M: 10, L: 6 }, listed: true, recommended: 4200, clicks: 128, approved: true, rating: 4.6, reviewCount: 156, isNew: true, isExclusive: false },
+    { id: 'p-008', vendorId: 'v-souled', name: 'Linen Camp Collar Shirt', category: 'Shirts', grad: 'grad-4', sizes: ['S','M','L','XL'], price: 1499, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Resort-style camp collar linen shirt', stock: { S: 16, M: 22, L: 14, XL: 6 }, listed: true, recommended: 7800, clicks: 234, approved: true, rating: 4.4, reviewCount: 268, isNew: false, isExclusive: false },
+    { id: 'p-009', vendorId: 'v-souled', name: 'Oversized Cotton Tee', category: 'Tops', grad: 'grad-6', sizes: ['S','M','L','XL'], price: 899, originalPrice: 1199, tags: ['Relaxed','Cotton','Casual'], description: 'Heavyweight oversized cotton t-shirt', stock: { S: 28, M: 34, L: 22, XL: 14 }, listed: true, recommended: 10200, clicks: 310, approved: true, rating: 4.5, reviewCount: 521, isNew: false, isExclusive: false },
   ],
   orders: [
     { id: 'SY-8842', vendorId: 'v-kavya', buyerId: 'buyer-demo', productId: 'p-001', size: 'M', qty: 1, price: 1599, buyer: 'Ananya S.', city: 'Delhi', pin: '110017', status: 'to-ship', placed: '19 Apr, 2:14 PM', dispatchByHrs: 6 },
@@ -1001,49 +1449,406 @@ function TopBar({ onNav, currentUser, onLogout }) {
   );
 }
 
-// ============ LANDING ============
+// ============ LANDING (luxury redesign) ============
 function Landing({ onNav }) {
-  return (
-    <div className="landing">
-      <div className="landing-wrap">
-        <nav className="landing-nav">
-          <div className="landing-brand">styli<span className="dot">.</span></div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-small btn-ghost" onClick={() => onNav('team-login')}>Team</button>
-            <button className="btn btn-small btn-ghost" onClick={() => onNav('admin-login')}>Admin</button>
+  const { state, actions, addToast } = useApp();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+
+  const cartCount = (state.buyerCart || []).reduce((s, x) => s + (x.qty || 1), 0);
+  const wishCount = (state.buyerWishlist || []).length;
+  const wishlist  = state.buyerWishlist || [];
+
+  // Trending = top 4 products by recommendations
+  const trending = [...state.products]
+    .filter(p => p.listed && p.approved)
+    .sort((a, b) => (b.recommended || 0) - (a.recommended || 0))
+    .slice(0, 4);
+
+  // New arrivals = products flagged isNew
+  const newArrivals = state.products.filter(p => p.listed && p.approved && p.isNew).slice(0, 4);
+
+  // Approved vendors = featured brands
+  const featuredBrands = state.vendors.filter(v => v.status === 'approved').slice(0, 6);
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      // Persist search through localStorage for shop page to pick up
+      try { localStorage.setItem('styli-search', searchQuery.trim()); } catch {}
+      onNav('buyer-shop');
+    }
+  };
+
+  const handleAccountClick = () => {
+    if (state.currentUser?.role === 'buyer') onNav('buyer-shop');
+    else onNav('buyer-login');
+  };
+
+  const handleCartClick = () => {
+    if (state.currentUser?.role === 'buyer') onNav('buyer-cart');
+    else onNav('buyer-login');
+  };
+
+  const handleNewsletter = (e) => {
+    e.preventDefault();
+    if (!newsletterEmail.trim() || !newsletterEmail.includes('@')) {
+      addToast('Enter a valid email', 'warn');
+      return;
+    }
+    try {
+      const list = JSON.parse(localStorage.getItem('styli-newsletter') || '[]');
+      list.push({ email: newsletterEmail.trim(), at: Date.now() });
+      localStorage.setItem('styli-newsletter', JSON.stringify(list));
+    } catch {}
+    addToast('Subscribed — welcome to the list 🎉', 'success');
+    setNewsletterEmail('');
+  };
+
+  const handleProductClick = (id) => onNav('buyer-product', id);
+  const toggleWish = (id, isWished, e) => {
+    e.stopPropagation();
+    if (!state.currentUser) { onNav('buyer-login'); return; }
+    actions.toggleWishlist(id);
+    addToast(isWished ? 'Removed from wishlist' : 'Saved to wishlist', isWished ? 'info' : 'success');
+  };
+
+  const renderProduct = (p) => {
+    const v = state.vendors.find(x => x.id === p.vendorId);
+    const wished = wishlist.includes(p.id);
+    const discount = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
+    return (
+      <button key={p.id} className="home-product" onClick={() => handleProductClick(p.id)}>
+        <div className={`home-product-img ${p.grad}`}>
+          <div className="home-product-badges">
+            {p.isNew && <span className="product-badge new">New In</span>}
+            {discount > 0 && <span className="product-badge sale">−{discount}%</span>}
+            {p.isExclusive && <span className="product-badge exclusive">Exclusive</span>}
           </div>
-        </nav>
-        <div className="landing-eyebrow">AI Fashion Marketplace · India</div>
-        <h1 className="landing-h1">Clothes that <em>actually</em> suit you.</h1>
-        <p className="landing-lead">Styli is where India discovers what to wear — personalized to your face, body, and taste — across boutiques and brands that list on our platform.</p>
-        <div className="landing-choose">Choose how you'd like to enter</div>
-        <div className="landing-cards">
-          <button className="landing-card buyer" onClick={() => onNav('buyer-signup')}>
-            <div className="landing-card-icon">S</div>
-            <div className="landing-card-tag">Shopper</div>
-            <div className="landing-card-title">Find what suits you</div>
-            <div className="landing-card-desc">Sign up, complete a quick style profile, and get personalized fashion from boutiques and brands across India.</div>
-            <div className="landing-card-action">Start shopping →</div>
-          </button>
-          <button className="landing-card vendor" onClick={() => onNav('vendor-login')}>
-            <div className="landing-card-icon">V</div>
-            <div className="landing-card-tag">Seller</div>
-            <div className="landing-card-title">Sell on Styli</div>
-            <div className="landing-card-desc">Apply to list your products. Once approved, manage your catalog, inventory, and orders in one place.</div>
-            <div className="landing-card-action">Apply or log in →</div>
-          </button>
-          <button className="landing-card admin" onClick={() => onNav('admin-login')}>
-            <div className="landing-card-icon">A</div>
-            <div className="landing-card-tag">Admin</div>
-            <div className="landing-card-title">Platform console</div>
-            <div className="landing-card-desc">Oversee vendors, products, and orders. Approve applications and monitor platform health.</div>
-            <div className="landing-card-action">Log in →</div>
-          </button>
+          <button
+            className={`home-product-wish ${wished ? 'active' : ''}`}
+            onClick={(e) => toggleWish(p.id, wished, e)}
+            aria-label={wished ? 'Remove from wishlist' : 'Save to wishlist'}
+          ></button>
+          <div className="home-product-match">{Math.min(97, 78 + Math.floor(Math.random() * 18))}% match</div>
         </div>
-        <div className="landing-foot-note">
-          <strong>Prototype with persistent state.</strong> Data saves to your browser and persists across sessions. Try: "Admin" button (pre-seeded with 5 vendors, 9 products, 6 orders), or apply as a new vendor / shopper. Reset demo from the banner above.
+        <div className="home-product-brand">{v?.name || 'Brand'}</div>
+        <div className="home-product-name">{p.name}</div>
+        <div className="home-product-rating">
+          <span className="stars">★★★★{p.rating >= 4.7 ? '★' : '☆'}</span>
+          <span>{p.rating?.toFixed(1) || '4.5'}</span>
+          <span className="count">({p.reviewCount || 0})</span>
         </div>
-      </div>
+        <div className="home-product-price-row">
+          <span className="home-product-price">{formatINR(p.price)}</span>
+          {p.originalPrice && (
+            <>
+              <span className="home-product-price-original">{formatINR(p.originalPrice)}</span>
+              <span className="home-product-price-discount">−{discount}%</span>
+            </>
+          )}
+        </div>
+      </button>
+    );
+  };
+
+  const categories = [
+    { id: 'Kurtas', label: 'Kurtas & Sets', sub: 'Indian', grad: 'cat-grad-1' },
+    { id: 'Dresses', label: 'Dresses', sub: 'Western', grad: 'cat-grad-2' },
+    { id: 'Shirts', label: 'Shirts', sub: 'Everyday', grad: 'cat-grad-3' },
+    { id: 'Trousers', label: 'Bottoms', sub: 'Trousers · Pants', grad: 'cat-grad-4' },
+    { id: 'Tops', label: 'Tops & Tees', sub: 'Casual', grad: 'cat-grad-5' },
+    { id: 'all', label: 'Everything', sub: 'View all', grad: 'cat-grad-6' },
+  ];
+
+  return (
+    <div>
+      {/* ─── Sticky top navigation ─── */}
+      <header className="home-nav">
+        <div className="home-nav-inner">
+          <div className="home-nav-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            styli<span className="dot">.</span>
+          </div>
+          <div className="home-nav-links">
+            <span className="home-nav-link" onClick={() => onNav('buyer-shop')}>Shop</span>
+            <span className="home-nav-link" onClick={() => onNav('buyer-shop')}>New In</span>
+            <span className="home-nav-link sale" onClick={() => onNav('buyer-shop')}>Sale</span>
+            <span className="home-nav-link" onClick={() => document.getElementById('home-brands')?.scrollIntoView({ behavior: 'smooth' })}>Brands</span>
+          </div>
+          <div className="home-nav-icons">
+            <div className="home-nav-search">
+              <span className="home-nav-search-icon">⌕</span>
+              <input
+                type="text"
+                placeholder="Search for kurtas, dresses, brands…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
+              />
+            </div>
+            <button className="home-nav-icon-btn" onClick={handleAccountClick} aria-label="Account" title="Account">
+              <span className="icon-glyph">◉</span>
+            </button>
+            <button className="home-nav-icon-btn" onClick={() => state.currentUser?.role === 'buyer' ? onNav('buyer-wishlist') : onNav('buyer-login')} aria-label="Wishlist" title="Wishlist">
+              <span className="icon-glyph">♡</span>
+              {wishCount > 0 && <span className="icon-count">{wishCount}</span>}
+            </button>
+            <button className="home-nav-icon-btn" onClick={handleCartClick} aria-label="Cart" title="Cart">
+              <span className="icon-glyph">◐</span>
+              {cartCount > 0 && <span className="icon-count">{cartCount}</span>}
+            </button>
+            <button className="home-nav-cta" onClick={() => onNav('buyer-signup')}>Start shopping</button>
+          </div>
+        </div>
+      </header>
+
+      {/* ─── Hero ─── */}
+      <section className="home-hero">
+        <div className="home-hero-content">
+          <div className="home-hero-tag">AI Fashion Marketplace · India</div>
+          <h1 className="home-hero-title">Clothes that <em>actually</em> suit you.</h1>
+          <p className="home-hero-lead">Curated from boutiques and brands across India — personalized to your face, body, and taste. Take a 60-second style scan to discover pieces made for you.</p>
+          <div className="home-hero-actions">
+            <button className="btn-luxe" onClick={() => onNav('buyer-signup')}>Take the style scan</button>
+            <button className="btn-luxe-outline" onClick={() => onNav('buyer-shop')}>Browse the shop</button>
+          </div>
+          <div className="home-hero-trust">
+            <div className="home-hero-trust-item">
+              <div className="num">{state.products.filter(p => p.listed).length}+</div>
+              <div className="lbl">Curated pieces</div>
+            </div>
+            <div className="home-hero-trust-item">
+              <div className="num">{state.vendors.filter(v => v.status === 'approved').length}+</div>
+              <div className="lbl">Brands & boutiques</div>
+            </div>
+            <div className="home-hero-trust-item">
+              <div className="num">98%</div>
+              <div className="lbl">Match accuracy</div>
+            </div>
+          </div>
+        </div>
+        <div className="home-hero-visual">
+          <div className="home-hero-visual-tag">
+            <div>
+              <div className="ht-title">Spring Edit · 2026</div>
+              <div className="ht-sub">Hand-curated by our stylists</div>
+            </div>
+            <div className="ht-arrow" onClick={() => onNav('buyer-shop')} style={{ cursor: 'pointer' }}>→</div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Shop by Category ─── */}
+      <section className="home-section">
+        <div className="home-section-head">
+          <div>
+            <div className="home-section-eyebrow">Discover</div>
+            <h2 className="home-section-title">Shop by <em>category</em></h2>
+          </div>
+          <span className="home-section-link" onClick={() => onNav('buyer-shop')}>View all</span>
+        </div>
+        <div className="home-categories">
+          {categories.map(cat => (
+            <button key={cat.id} className="home-cat-tile" onClick={() => onNav('buyer-shop')}>
+              <div className={`home-cat-tile-img ${cat.grad}`}></div>
+              <div className="home-cat-tile-content">
+                <div className="lbl">{cat.label}</div>
+                <div className="sub">{cat.sub}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── Trending Now ─── */}
+      <section className="home-section">
+        <div className="home-section-head">
+          <div>
+            <div className="home-section-eyebrow">Loved by everyone</div>
+            <h2 className="home-section-title"><em>Trending</em> now</h2>
+          </div>
+          <span className="home-section-link" onClick={() => onNav('buyer-shop')}>See all</span>
+        </div>
+        <div className="home-products-grid">
+          {trending.map(renderProduct)}
+        </div>
+      </section>
+
+      {/* ─── Editorial / Look Book ─── */}
+      <section className="home-section">
+        <div className="home-section-head">
+          <div>
+            <div className="home-section-eyebrow">The Look Book</div>
+            <h2 className="home-section-title">Stories of <em>style</em></h2>
+          </div>
+        </div>
+        <div className="home-editorial">
+          <div className="home-editorial-card home-editorial-bg-1" onClick={() => onNav('buyer-shop')}>
+            <div className="home-editorial-content">
+              <div className="home-editorial-eyebrow">Volume 04</div>
+              <div className="home-editorial-title">Heritage in motion: hand-block prints meet contemporary cuts</div>
+              <div className="home-editorial-cta">Read the edit</div>
+            </div>
+          </div>
+          <div className="home-editorial-card home-editorial-bg-2" onClick={() => onNav('buyer-shop')}>
+            <div className="home-editorial-content">
+              <div className="home-editorial-eyebrow">Spring 2026</div>
+              <div className="home-editorial-title">Linen's quiet luxury: what to wear when the heat sets in</div>
+              <div className="home-editorial-cta">Explore the season</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── New Arrivals ─── */}
+      {newArrivals.length > 0 && (
+        <section className="home-section">
+          <div className="home-section-head">
+            <div>
+              <div className="home-section-eyebrow">Just landed</div>
+              <h2 className="home-section-title">New <em>arrivals</em></h2>
+            </div>
+            <span className="home-section-link" onClick={() => onNav('buyer-shop')}>See all</span>
+          </div>
+          <div className="home-products-grid">
+            {newArrivals.map(renderProduct)}
+          </div>
+        </section>
+      )}
+
+      {/* ─── Why Styli ─── */}
+      <section className="home-section home-why">
+        <div className="home-section-head" style={{ justifyContent: 'center', textAlign: 'center', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="home-section-eyebrow">How it works</div>
+          <h2 className="home-section-title">Fashion that <em>knows you</em></h2>
+        </div>
+        <div className="home-why-grid">
+          <div className="home-why-step">
+            <div className="home-why-step-num">Step 01</div>
+            <div className="home-why-step-icon">📸</div>
+            <h3>Take the style scan</h3>
+            <p>A 60-second face scan captures your skin tone, undertone, and face shape. Your style profile builds the picture: fit, vibe, body type, occasions you dress for.</p>
+          </div>
+          <div className="home-why-step">
+            <div className="home-why-step-num">Step 02</div>
+            <div className="home-why-step-icon">✨</div>
+            <h3>AI matches what suits you</h3>
+            <p>Our recommendation engine cross-references thousands of pieces from boutiques and brands across India — and surfaces only the ones designed for your features and taste.</p>
+          </div>
+          <div className="home-why-step">
+            <div className="home-why-step-num">Step 03</div>
+            <div className="home-why-step-icon">🎁</div>
+            <h3>Shop with certainty</h3>
+            <p>Each product page tells you exactly why it suits you. No more guessing if something will flatter your face shape or work with your wardrobe. Free returns within 7 days.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Featured Brands ─── */}
+      <section className="home-section" id="home-brands">
+        <div className="home-brands">
+          <div className="home-section-head">
+            <div>
+              <div className="home-section-eyebrow">Hand-picked</div>
+              <h2 className="home-section-title">Featured <em>brands</em></h2>
+            </div>
+            <span className="home-section-link" onClick={() => onNav('buyer-shop')}>All brands</span>
+          </div>
+          <div className="home-brands-grid">
+            {featuredBrands.map(v => (
+              <div key={v.id} className="home-brand-card" onClick={() => onNav('buyer-shop')}>
+                <div className="home-brand-logo">{v.name?.[0] || 'S'}</div>
+                <div className="home-brand-name">{v.name}</div>
+                <div className="home-brand-meta">{v.city}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Newsletter ─── */}
+      <section className="home-section">
+        <div className="home-newsletter">
+          <div className="home-newsletter-eyebrow">The Style Letter</div>
+          <h2>Edit, delivered <em>weekly</em></h2>
+          <p>New arrivals, the season's must-haves, and styling notes from our editors. No spam — just the good stuff, every Sunday.</p>
+          <form className="home-newsletter-form" onSubmit={handleNewsletter}>
+            <input
+              type="email"
+              placeholder="Your email address"
+              value={newsletterEmail}
+              onChange={e => setNewsletterEmail(e.target.value)}
+              required
+            />
+            <button type="submit">Subscribe</button>
+          </form>
+        </div>
+      </section>
+
+      {/* ─── Footer ─── */}
+      <footer className="home-footer">
+        <div className="home-footer-inner">
+          <div className="home-footer-grid">
+            <div>
+              <div className="home-footer-brand">styli<span className="dot">.</span></div>
+              <p className="home-footer-tagline">Where India discovers fashion that's actually made for them — across boutiques and brands, curated by AI and stylists.</p>
+              <div className="home-footer-social">
+                <button className="home-footer-social-btn" title="Instagram">◎</button>
+                <button className="home-footer-social-btn" title="Twitter">𝕏</button>
+                <button className="home-footer-social-btn" title="Pinterest">P</button>
+                <button className="home-footer-social-btn" title="YouTube">▷</button>
+              </div>
+            </div>
+            <div className="home-footer-col">
+              <h4>Shop</h4>
+              <ul>
+                <li onClick={() => onNav('buyer-shop')}>New In</li>
+                <li onClick={() => onNav('buyer-shop')}>Best Sellers</li>
+                <li onClick={() => onNav('buyer-shop')}>Sale</li>
+                <li onClick={() => onNav('buyer-shop')}>Gift Cards</li>
+                <li onClick={() => onNav('buyer-shop')}>The Look Book</li>
+              </ul>
+            </div>
+            <div className="home-footer-col">
+              <h4>Help</h4>
+              <ul>
+                <li>Customer service</li>
+                <li>Track your order</li>
+                <li>Returns &amp; exchanges</li>
+                <li>Size guide</li>
+                <li>Contact us</li>
+              </ul>
+            </div>
+            <div className="home-footer-col">
+              <h4>About</h4>
+              <ul>
+                <li>Our story</li>
+                <li>How styli works</li>
+                <li>Careers</li>
+                <li>Press</li>
+                <li>Sustainability</li>
+              </ul>
+            </div>
+            <div className="home-footer-col">
+              <h4>For partners</h4>
+              <ul>
+                <li onClick={() => onNav('vendor-login')} style={{ fontWeight: 500, color: 'var(--ink)' }}>Sell on Styli →</li>
+                <li>Brand partnerships</li>
+                <li>Affiliate program</li>
+              </ul>
+            </div>
+          </div>
+          <div className="home-footer-bottom">
+            <span>© 2026 Styli. Made in India.</span>
+            <div className="home-footer-bottom-links">
+              <a>Privacy</a>
+              <a>Terms</a>
+              <a>Cookies</a>
+              <a onClick={() => onNav('team-login')} style={{ opacity: 0.5 }}>Team</a>
+              <a onClick={() => onNav('admin-login')} style={{ opacity: 0.5 }}>Admin</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -1450,6 +2255,11 @@ function BuyerOnboard({ onNav }) {
 function BuyerShop({ onNav }) {
   const { state, actions, addToast } = useApp();
   const [cat, setCat] = useState('all');
+  const [search, setSearch] = useState(() => {
+    try { return localStorage.getItem('styli-search') || ''; } catch { return ''; }
+  });
+  // Clear the saved search after we pick it up so it doesn't persist forever
+  useEffect(() => { try { localStorage.removeItem('styli-search'); } catch {} }, []);
 
   const user = state.currentUser;
   if (!user) { onNav('buyer-login'); return null; }
@@ -1460,7 +2270,15 @@ function BuyerShop({ onNav }) {
 
   const liveProducts = state.products.filter(p => p.listed && p.approved && totalStock(p.stock) > 0);
   const categories = ['all', ...Array.from(new Set(liveProducts.map(p => p.category)))];
-  const shown = cat === 'all' ? liveProducts : liveProducts.filter(p => p.category === cat);
+  const filteredByCat = cat === 'all' ? liveProducts : liveProducts.filter(p => p.category === cat);
+  const q = search.trim().toLowerCase();
+  const shown = q ? filteredByCat.filter(p => {
+    const v = state.vendors.find(x => x.id === p.vendorId);
+    return p.name.toLowerCase().includes(q)
+        || p.category.toLowerCase().includes(q)
+        || (p.tags || []).some(t => t.toLowerCase().includes(q))
+        || (v?.name || '').toLowerCase().includes(q);
+  }) : filteredByCat;
 
   // Mock match score — higher for products matching preferences
   const matchFor = (p) => {
@@ -1488,8 +2306,23 @@ function BuyerShop({ onNav }) {
 
         <div className="section-head">
           <div>
-            <div className="section-title"><em>{liveProducts.length}</em> pieces matched for you</div>
+            <div className="section-title"><em>{shown.length}</em> {q ? `result${shown.length !== 1 ? 's' : ''} for "${q}"` : 'pieces matched for you'}</div>
             <div className="section-sub">Across {new Set(liveProducts.map(p => p.vendorId)).size} brands on Styli</div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div className="home-nav-search" style={{ minWidth: 0, maxWidth: 480 }}>
+            <span className="home-nav-search-icon">⌕</span>
+            <input
+              type="text"
+              placeholder="Search kurtas, dresses, brands…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <span style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 14, padding: '0 4px' }} onClick={() => setSearch('')}>✕</span>
+            )}
           </div>
         </div>
 
