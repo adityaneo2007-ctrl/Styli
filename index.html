@@ -1139,6 +1139,211 @@ textarea.field-input { resize: vertical; min-height: 70px; }
   .home-newsletter h2 { font-size: 26px; }
   .home-newsletter-form { flex-direction: column; }
 }
+
+/* ======== PRODUCT IMAGES (real photos overlaying gradient fallback) ======== */
+.product-image img,
+.home-product-img img,
+.cart-item-img img,
+.detail-image-large img,
+.product-thumb img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+  z-index: 1;
+  opacity: 0; transition: opacity 0.4s ease;
+}
+.product-image img.loaded,
+.home-product-img img.loaded,
+.cart-item-img img.loaded,
+.detail-image-large img.loaded,
+.product-thumb img.loaded { opacity: 1; }
+.cart-item-img, .product-thumb { position: relative; overflow: hidden; }
+/* Make sure overlays sit above the image */
+.home-product-badges, .home-product-wish, .home-product-match,
+.match-badge, .wish-btn { z-index: 3 !important; }
+
+/* ======== ANNOUNCEMENT BAR (rotating offers) ======== */
+.home-announce {
+  background: var(--ink); color: var(--cream-light);
+  font-size: 12px; letter-spacing: 0.06em;
+  padding: 11px 24px; text-align: center;
+  position: relative; overflow: hidden;
+}
+.home-announce-track {
+  display: flex; align-items: center; justify-content: center; gap: 32px;
+  animation: announce-scroll 28s linear infinite;
+  white-space: nowrap;
+}
+.home-announce-item { display: inline-flex; align-items: center; gap: 8px; }
+.home-announce-item .icon { color: var(--rose-light); font-size: 14px; }
+.home-announce-item strong { color: white; font-weight: 600; letter-spacing: 0.08em; }
+.home-announce-item .code {
+  background: rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; margin: 0 4px;
+}
+@keyframes announce-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ======== TRENDING SEARCHES STRIP ======== */
+.home-trending-searches {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin-top: 24px;
+}
+.home-trending-searches-label {
+  font-size: 11px; color: var(--muted); letter-spacing: 0.14em;
+  text-transform: uppercase; margin-right: 6px; font-weight: 500;
+}
+.home-trending-chip {
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 7px 14px; border-radius: 100px;
+  font-size: 12.5px; color: var(--ink-soft);
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
+}
+.home-trending-chip:hover { border-color: var(--ink-soft); color: var(--ink); transform: translateY(-1px); }
+.home-trending-chip .fire { color: var(--sale); margin-right: 4px; }
+
+/* ======== OFFERS STRIP (Ajio-inspired colored cards) ======== */
+.home-offers-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  margin-bottom: 8px;
+}
+.home-offer-card {
+  border-radius: 16px; padding: 20px 22px; cursor: pointer;
+  transition: transform 0.2s; position: relative; overflow: hidden;
+  border: 1px solid transparent;
+}
+.home-offer-card:hover { transform: translateY(-3px); }
+.home-offer-card .of-tag {
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  font-weight: 600; opacity: 0.8;
+}
+.home-offer-card .of-title {
+  font-family: 'Fraunces', serif; font-size: 22px; font-weight: 500;
+  letter-spacing: -0.01em; line-height: 1.1; margin-top: 6px;
+}
+.home-offer-card .of-sub {
+  font-size: 12.5px; margin-top: 6px; opacity: 0.85;
+}
+.home-offer-1 { background: linear-gradient(135deg, #FBE9E0, #F3DDD2); color: var(--rose-deep); }
+.home-offer-2 { background: linear-gradient(135deg, #E0EAD9, #C8D4BE); color: var(--ok); }
+.home-offer-3 { background: linear-gradient(135deg, #F3E9D3, #E5D4B4); color: var(--gold-deep); }
+.home-offer-4 { background: linear-gradient(135deg, #1F2937, #0F172A); color: var(--cream-light); }
+
+/* ======== CURATED COLLECTIONS (vertical magazine cards) ======== */
+.home-collections {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+}
+.home-collection {
+  aspect-ratio: 3/4; border-radius: 20px; overflow: hidden; position: relative;
+  cursor: pointer; transition: transform 0.25s;
+}
+.home-collection:hover { transform: translateY(-4px); }
+.home-collection-img {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+}
+.home-collection::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 35%, rgba(15,23,42,0.85) 100%);
+}
+.home-collection-content {
+  position: absolute; bottom: 28px; left: 28px; right: 28px; z-index: 2; color: white;
+}
+.home-collection-eyebrow {
+  font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+  opacity: 0.85; margin-bottom: 10px; font-weight: 500;
+}
+.home-collection-title {
+  font-family: 'Fraunces', serif; font-size: 28px; font-weight: 500;
+  letter-spacing: -0.01em; line-height: 1.1; margin-bottom: 8px;
+}
+.home-collection-meta { font-size: 12px; opacity: 0.85; }
+.col-grad-1 { background: linear-gradient(135deg, #C97B63, #5A4A3D); }
+.col-grad-2 { background: linear-gradient(135deg, #1F2937, #5A4A3D); }
+.col-grad-3 { background: linear-gradient(135deg, #B8935E, #5A4A3D); }
+
+/* ======== BRAND OF THE DAY (large featured card) ======== */
+.home-brand-spotlight {
+  display: grid; grid-template-columns: 1fr 1.4fr; gap: 32px; align-items: stretch;
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 24px;
+  overflow: hidden;
+}
+.home-brand-spotlight-visual {
+  background: linear-gradient(135deg, #5A4A3D, #C97B63);
+  position: relative; min-height: 360px;
+}
+.home-brand-spotlight-visual::after {
+  content: ''; position: absolute; inset: 0;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence baseFrequency='0.85'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/></svg>");
+  mix-blend-mode: overlay;
+}
+.home-brand-spotlight-content {
+  padding: 48px 40px; display: flex; flex-direction: column; justify-content: center;
+}
+.home-brand-spotlight-eyebrow {
+  font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--rose-deep); font-weight: 600; margin-bottom: 16px;
+}
+.home-brand-spotlight-name {
+  font-family: 'Fraunces', serif; font-size: 48px; font-weight: 400;
+  letter-spacing: -0.02em; color: var(--ink); margin-bottom: 14px;
+}
+.home-brand-spotlight-desc {
+  font-size: 15px; color: var(--ink-soft); line-height: 1.6;
+  max-width: 480px; margin-bottom: 24px;
+}
+.home-brand-spotlight-stats {
+  display: flex; gap: 28px; padding: 18px 0; border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft); margin-bottom: 24px;
+}
+.home-brand-spotlight-stat .num {
+  font-family: 'Fraunces', serif; font-size: 22px; font-weight: 500; color: var(--ink);
+}
+.home-brand-spotlight-stat .lbl {
+  font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;
+}
+
+/* ======== RECENTLY VIEWED ======== */
+.home-recently { background: var(--cream-light); padding: 64px 36px; border-radius: 24px; }
+
+/* ======== STORY STRIP (Instagram-feel) ======== */
+.home-stories {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 16px;
+  margin-top: 24px;
+}
+.home-story {
+  text-align: center; cursor: pointer; transition: transform 0.15s;
+  background: transparent; border: none; padding: 0; font-family: inherit; color: inherit;
+}
+.home-story:hover { transform: translateY(-2px); }
+.home-story-ring {
+  width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 8px;
+  padding: 3px; background: linear-gradient(135deg, #C97B63, #B8935E);
+}
+.home-story-ring-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: var(--panel); padding: 2px; display: flex; align-items: center; justify-content: center;
+}
+.home-story-img {
+  width: 100%; height: 100%; border-radius: 50%; background-size: cover; background-position: center;
+}
+.home-story-label {
+  font-size: 11px; color: var(--ink-soft); font-weight: 500;
+}
+
+@media (max-width: 1100px) {
+  .home-offers-strip { grid-template-columns: repeat(2, 1fr); }
+  .home-collections { grid-template-columns: 1fr; }
+  .home-brand-spotlight { grid-template-columns: 1fr; }
+  .home-brand-spotlight-name { font-size: 36px; }
+  .home-stories { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 700px) {
+  .home-offers-strip { grid-template-columns: 1fr; }
+  .home-stories { grid-template-columns: repeat(3, 1fr); }
+  .home-announce { font-size: 11px; }
+}
 </style>
 </head>
 <body>
@@ -1163,15 +1368,15 @@ const defaultState = () => ({
     { id: 'v-urban', email: 'hello@urbanloom.in', password: 'demo123', name: 'Urban Loom', type: 'medium', gst: '07AABCU5678R1ZL', city: 'Delhi', phone: '9876543214', status: 'pending', appliedAt: '19 Apr 2026' },
   ],
   products: [
-    { id: 'p-001', vendorId: 'v-kavya', name: 'Block Print Kurta', category: 'Kurtas', grad: 'grad-1', sizes: ['S','M','L','XL'], price: 1599, originalPrice: 2200, tags: ['A-line','Cotton','Casual','Block print','Warm tones'], description: 'Hand-block printed cotton kurta with A-line silhouette. Made in Jaipur.', stock: { S: 12, M: 18, L: 8, XL: 4 }, listed: true, recommended: 8240, clicks: 184, approved: true, rating: 4.6, reviewCount: 247, isNew: false, isExclusive: true },
-    { id: 'p-002', vendorId: 'v-kavya', name: 'Cotton Palazzo Pants', category: 'Trousers', grad: 'grad-4', sizes: ['S','M','L'], price: 1299, tags: ['Relaxed','Cotton','Casual'], description: 'Wide-leg cotton palazzo pants with elastic waistband', stock: { S: 4, M: 3, L: 1 }, listed: true, recommended: 5890, clicks: 118, approved: true, rating: 4.4, reviewCount: 132, isNew: true, isExclusive: false },
-    { id: 'p-003', vendorId: 'v-kavya', name: 'Tiered Cotton Dress', category: 'Dresses', grad: 'grad-7', sizes: ['XS','S','M','L'], price: 2199, originalPrice: 2899, tags: ['A-line','Cotton','Floral'], description: 'Three-tier midi dress in soft cotton', stock: { XS: 6, S: 9, M: 8, L: 5 }, listed: true, recommended: 1240, clicks: 62, approved: true, rating: 4.8, reviewCount: 89, isNew: true, isExclusive: false },
-    { id: 'p-004', vendorId: 'v-kavya', name: 'Hand-Block Print Top', category: 'Tops', grad: 'grad-3', sizes: ['S','M','L'], price: 1850, tags: ['Relaxed','Cotton','Hand-block','Warm tones'], description: 'Loose-fit top with hand-block print', stock: { S: 1, M: 2, L: 0 }, listed: true, recommended: 6120, clicks: 142, approved: true, rating: 4.7, reviewCount: 203, isNew: false, isExclusive: true },
-    { id: 'p-005', vendorId: 'v-hm', name: 'Relaxed Linen Shirt', category: 'Shirts', grad: 'grad-5', sizes: ['S','M','L','XL'], price: 1999, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Breathable linen button-down for everyday', stock: { S: 24, M: 32, L: 18, XL: 8 }, listed: true, recommended: 12800, clicks: 380, approved: true, rating: 4.5, reviewCount: 412, isNew: false, isExclusive: false },
-    { id: 'p-006', vendorId: 'v-hm', name: 'Slim Fit Oxford Shirt', category: 'Shirts', grad: 'grad-10', sizes: ['S','M','L','XL'], price: 1799, originalPrice: 2299, tags: ['Slim fit','Cotton','Formal','Cool tones'], description: 'Classic Oxford cotton shirt, slim fit', stock: { S: 18, M: 26, L: 22, XL: 12 }, listed: true, recommended: 9400, clicks: 290, approved: true, rating: 4.3, reviewCount: 318, isNew: false, isExclusive: false },
-    { id: 'p-007', vendorId: 'v-hm', name: 'Cotton Poplin Midi Dress', category: 'Dresses', grad: 'grad-7', sizes: ['XS','S','M','L'], price: 3290, tags: ['A-line','Cotton','Solid'], description: 'Structured midi dress in cotton poplin', stock: { XS: 8, S: 12, M: 10, L: 6 }, listed: true, recommended: 4200, clicks: 128, approved: true, rating: 4.6, reviewCount: 156, isNew: true, isExclusive: false },
-    { id: 'p-008', vendorId: 'v-souled', name: 'Linen Camp Collar Shirt', category: 'Shirts', grad: 'grad-4', sizes: ['S','M','L','XL'], price: 1499, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Resort-style camp collar linen shirt', stock: { S: 16, M: 22, L: 14, XL: 6 }, listed: true, recommended: 7800, clicks: 234, approved: true, rating: 4.4, reviewCount: 268, isNew: false, isExclusive: false },
-    { id: 'p-009', vendorId: 'v-souled', name: 'Oversized Cotton Tee', category: 'Tops', grad: 'grad-6', sizes: ['S','M','L','XL'], price: 899, originalPrice: 1199, tags: ['Relaxed','Cotton','Casual'], description: 'Heavyweight oversized cotton t-shirt', stock: { S: 28, M: 34, L: 22, XL: 14 }, listed: true, recommended: 10200, clicks: 310, approved: true, rating: 4.5, reviewCount: 521, isNew: false, isExclusive: false },
+    { id: 'p-001', vendorId: 'v-kavya', name: 'Block Print Kurta', category: 'Kurtas', grad: 'grad-1', imageUrl: 'https://image.pollinations.ai/prompt/indian%20woman%20wearing%20rust%20orange%20block%20print%20cotton%20kurta%20editorial%20fashion%20photography%20minimal%20cream%20background%20natural%20light%20full%20body?width=600&height=800&nologo=true&seed=101', sizes: ['S','M','L','XL'], price: 1599, originalPrice: 2200, tags: ['A-line','Cotton','Casual','Block print','Warm tones'], description: 'Hand-block printed cotton kurta with A-line silhouette. Made in Jaipur.', stock: { S: 12, M: 18, L: 8, XL: 4 }, listed: true, recommended: 8240, clicks: 184, approved: true, rating: 4.6, reviewCount: 247, isNew: false, isExclusive: true },
+    { id: 'p-002', vendorId: 'v-kavya', name: 'Cotton Palazzo Pants', category: 'Trousers', grad: 'grad-4', imageUrl: 'https://image.pollinations.ai/prompt/woman%20wearing%20cream%20beige%20cotton%20palazzo%20pants%20editorial%20fashion%20minimal%20background%20full%20body%20natural%20light?width=600&height=800&nologo=true&seed=102', sizes: ['S','M','L'], price: 1299, tags: ['Relaxed','Cotton','Casual'], description: 'Wide-leg cotton palazzo pants with elastic waistband', stock: { S: 4, M: 3, L: 1 }, listed: true, recommended: 5890, clicks: 118, approved: true, rating: 4.4, reviewCount: 132, isNew: true, isExclusive: false },
+    { id: 'p-003', vendorId: 'v-kavya', name: 'Tiered Cotton Dress', category: 'Dresses', grad: 'grad-7', imageUrl: 'https://image.pollinations.ai/prompt/woman%20wearing%20pink%20tiered%20cotton%20midi%20dress%20floral%20pattern%20editorial%20fashion%20natural%20light%20soft%20background?width=600&height=800&nologo=true&seed=103', sizes: ['XS','S','M','L'], price: 2199, originalPrice: 2899, tags: ['A-line','Cotton','Floral'], description: 'Three-tier midi dress in soft cotton', stock: { XS: 6, S: 9, M: 8, L: 5 }, listed: true, recommended: 1240, clicks: 62, approved: true, rating: 4.8, reviewCount: 89, isNew: true, isExclusive: false },
+    { id: 'p-004', vendorId: 'v-kavya', name: 'Hand-Block Print Top', category: 'Tops', grad: 'grad-3', imageUrl: 'https://image.pollinations.ai/prompt/indian%20woman%20wearing%20loose%20fit%20hand%20block%20print%20cotton%20top%20warm%20earth%20tones%20editorial%20fashion%20photography%20minimal?width=600&height=800&nologo=true&seed=104', sizes: ['S','M','L'], price: 1850, tags: ['Relaxed','Cotton','Hand-block','Warm tones'], description: 'Loose-fit top with hand-block print', stock: { S: 1, M: 2, L: 0 }, listed: true, recommended: 6120, clicks: 142, approved: true, rating: 4.7, reviewCount: 203, isNew: false, isExclusive: true },
+    { id: 'p-005', vendorId: 'v-hm', name: 'Relaxed Linen Shirt', category: 'Shirts', grad: 'grad-5', imageUrl: 'https://image.pollinations.ai/prompt/man%20wearing%20beige%20relaxed%20linen%20button%20down%20shirt%20summer%20editorial%20fashion%20minimal%20neutral%20background?width=600&height=800&nologo=true&seed=105', sizes: ['S','M','L','XL'], price: 1999, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Breathable linen button-down for everyday', stock: { S: 24, M: 32, L: 18, XL: 8 }, listed: true, recommended: 12800, clicks: 380, approved: true, rating: 4.5, reviewCount: 412, isNew: false, isExclusive: false },
+    { id: 'p-006', vendorId: 'v-hm', name: 'Slim Fit Oxford Shirt', category: 'Shirts', grad: 'grad-10', imageUrl: 'https://image.pollinations.ai/prompt/man%20wearing%20crisp%20white%20slim%20fit%20oxford%20cotton%20shirt%20classic%20business%20editorial%20fashion%20minimal%20background?width=600&height=800&nologo=true&seed=106', sizes: ['S','M','L','XL'], price: 1799, originalPrice: 2299, tags: ['Slim fit','Cotton','Formal','Cool tones'], description: 'Classic Oxford cotton shirt, slim fit', stock: { S: 18, M: 26, L: 22, XL: 12 }, listed: true, recommended: 9400, clicks: 290, approved: true, rating: 4.3, reviewCount: 318, isNew: false, isExclusive: false },
+    { id: 'p-007', vendorId: 'v-hm', name: 'Cotton Poplin Midi Dress', category: 'Dresses', grad: 'grad-7', imageUrl: 'https://image.pollinations.ai/prompt/woman%20wearing%20solid%20cream%20color%20cotton%20poplin%20midi%20dress%20structured%20silhouette%20editorial%20fashion%20photography%20minimal?width=600&height=800&nologo=true&seed=107', sizes: ['XS','S','M','L'], price: 3290, tags: ['A-line','Cotton','Solid'], description: 'Structured midi dress in cotton poplin', stock: { XS: 8, S: 12, M: 10, L: 6 }, listed: true, recommended: 4200, clicks: 128, approved: true, rating: 4.6, reviewCount: 156, isNew: true, isExclusive: false },
+    { id: 'p-008', vendorId: 'v-souled', name: 'Linen Camp Collar Shirt', category: 'Shirts', grad: 'grad-4', imageUrl: 'https://image.pollinations.ai/prompt/man%20wearing%20cream%20linen%20camp%20collar%20shirt%20resort%20vacation%20style%20editorial%20fashion%20natural%20light?width=600&height=800&nologo=true&seed=108', sizes: ['S','M','L','XL'], price: 1499, tags: ['Relaxed','Linen','Casual','Neutral'], description: 'Resort-style camp collar linen shirt', stock: { S: 16, M: 22, L: 14, XL: 6 }, listed: true, recommended: 7800, clicks: 234, approved: true, rating: 4.4, reviewCount: 268, isNew: false, isExclusive: false },
+    { id: 'p-009', vendorId: 'v-souled', name: 'Oversized Cotton Tee', category: 'Tops', grad: 'grad-6', imageUrl: 'https://image.pollinations.ai/prompt/oversized%20heavyweight%20white%20cotton%20t-shirt%20streetwear%20casual%20fashion%20editorial%20minimal%20neutral%20background?width=600&height=800&nologo=true&seed=109', sizes: ['S','M','L','XL'], price: 899, originalPrice: 1199, tags: ['Relaxed','Cotton','Casual'], description: 'Heavyweight oversized cotton t-shirt', stock: { S: 28, M: 34, L: 22, XL: 14 }, listed: true, recommended: 10200, clicks: 310, approved: true, rating: 4.5, reviewCount: 521, isNew: false, isExclusive: false },
   ],
   orders: [
     { id: 'SY-8842', vendorId: 'v-kavya', buyerId: 'buyer-demo', productId: 'p-001', size: 'M', qty: 1, price: 1599, buyer: 'Ananya S.', city: 'Delhi', pin: '110017', status: 'to-ship', placed: '19 Apr, 2:14 PM', dispatchByHrs: 6 },
@@ -1449,6 +1654,42 @@ function TopBar({ onNav, currentUser, onLogout }) {
   );
 }
 
+// ============ PRODUCT IMAGE (real photo with gradient fallback) ============
+function ProductImage({ product, className = '' }) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+  if (!product) return <div className={className}></div>;
+  return (
+    <div className={`${className} ${product.grad || ''}`}>
+      {product.imageUrl && !errored && (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          loading="lazy"
+          className={loaded ? 'loaded' : ''}
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============ RECENTLY VIEWED — small helper module ============
+const RECENTLY_VIEWED_KEY = 'styli-recently-viewed';
+function recordRecentlyViewed(productId) {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENTLY_VIEWED_KEY) || '[]')
+      .filter(id => id !== productId);
+    list.unshift(productId);
+    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list.slice(0, 8)));
+  } catch {}
+}
+function getRecentlyViewed() {
+  try { return JSON.parse(localStorage.getItem(RECENTLY_VIEWED_KEY) || '[]'); }
+  catch { return []; }
+}
+
 // ============ LANDING (luxury redesign) ============
 function Landing({ onNav }) {
   const { state, actions, addToast } = useApp();
@@ -1518,19 +1759,18 @@ function Landing({ onNav }) {
     const discount = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
     return (
       <button key={p.id} className="home-product" onClick={() => handleProductClick(p.id)}>
-        <div className={`home-product-img ${p.grad}`}>
-          <div className="home-product-badges">
-            {p.isNew && <span className="product-badge new">New In</span>}
-            {discount > 0 && <span className="product-badge sale">−{discount}%</span>}
-            {p.isExclusive && <span className="product-badge exclusive">Exclusive</span>}
-          </div>
-          <button
-            className={`home-product-wish ${wished ? 'active' : ''}`}
-            onClick={(e) => toggleWish(p.id, wished, e)}
-            aria-label={wished ? 'Remove from wishlist' : 'Save to wishlist'}
-          ></button>
-          <div className="home-product-match">{Math.min(97, 78 + Math.floor(Math.random() * 18))}% match</div>
+        <ProductImage product={p} className="home-product-img" />
+        <div className="home-product-badges">
+          {p.isNew && <span className="product-badge new">New In</span>}
+          {discount > 0 && <span className="product-badge sale">−{discount}%</span>}
+          {p.isExclusive && <span className="product-badge exclusive">Exclusive</span>}
         </div>
+        <button
+          className={`home-product-wish ${wished ? 'active' : ''}`}
+          onClick={(e) => toggleWish(p.id, wished, e)}
+          aria-label={wished ? 'Remove from wishlist' : 'Save to wishlist'}
+        ></button>
+        <div className="home-product-match" style={{ position: 'absolute', bottom: 'unset', top: 'auto' }}>{Math.min(97, 78 + Math.floor(Math.random() * 18))}% match</div>
         <div className="home-product-brand">{v?.name || 'Brand'}</div>
         <div className="home-product-name">{p.name}</div>
         <div className="home-product-rating">
@@ -1551,6 +1791,33 @@ function Landing({ onNav }) {
     );
   };
 
+  // Recently viewed — populated as buyer browses products
+  const recentIds = getRecentlyViewed();
+  const recentlyViewed = recentIds
+    .map(id => state.products.find(p => p.id === id))
+    .filter(Boolean)
+    .filter(p => p.listed && p.approved)
+    .slice(0, 4);
+
+  // Trending search terms — common in fashion
+  const trendingSearches = ['Block print', 'Linen shirt', 'Summer dress', 'Kurta sets', 'Co-ords', 'Wide-leg pants', 'Oversized tees'];
+
+  // Brand of the day — first approved vendor
+  const brandOfDay = state.vendors.find(v => v.status === 'approved' && v.score > 90) || featuredBrands[0];
+  const brandOfDayProducts = state.products.filter(p => p.vendorId === brandOfDay?.id && p.listed && p.approved);
+  const brandOfDayGmv = state.orders.filter(o => o.vendorId === brandOfDay?.id).reduce((s, o) => s + o.price * o.qty, 0);
+
+  // Story tiles (Instagram-style) — categories with photos
+  const stories = [
+    { id: 'new', label: 'New In', emoji: '✨' },
+    { id: 'sale', label: 'Sale', emoji: '🔥' },
+    { id: 'kurtas', label: 'Kurtas', emoji: '👗' },
+    { id: 'dresses', label: 'Dresses', emoji: '👗' },
+    { id: 'workwear', label: 'Workwear', emoji: '💼' },
+    { id: 'casual', label: 'Casual', emoji: '☀️' },
+    { id: 'occasion', label: 'Occasion', emoji: '✨' },
+  ];
+
   const categories = [
     { id: 'Kurtas', label: 'Kurtas & Sets', sub: 'Indian', grad: 'cat-grad-1' },
     { id: 'Dresses', label: 'Dresses', sub: 'Western', grad: 'cat-grad-2' },
@@ -1562,6 +1829,21 @@ function Landing({ onNav }) {
 
   return (
     <div>
+      {/* ─── Announcement bar (rotating offers) ─── */}
+      <div className="home-announce">
+        <div className="home-announce-track">
+          <span className="home-announce-item"><span className="icon">✦</span> <strong>FREE SHIPPING</strong> on orders ₹999+</span>
+          <span className="home-announce-item"><span className="icon">✦</span> New customer? Use <span className="code">STYLI20</span> for 20% off</span>
+          <span className="home-announce-item"><span className="icon">✦</span> 7-day easy returns · No questions asked</span>
+          <span className="home-announce-item"><span className="icon">✦</span> Pay with UPI · Cards · Wallets · Net Banking</span>
+          {/* Duplicate for seamless infinite scroll */}
+          <span className="home-announce-item"><span className="icon">✦</span> <strong>FREE SHIPPING</strong> on orders ₹999+</span>
+          <span className="home-announce-item"><span className="icon">✦</span> New customer? Use <span className="code">STYLI20</span> for 20% off</span>
+          <span className="home-announce-item"><span className="icon">✦</span> 7-day easy returns · No questions asked</span>
+          <span className="home-announce-item"><span className="icon">✦</span> Pay with UPI · Cards · Wallets · Net Banking</span>
+        </div>
+      </div>
+
       {/* ─── Sticky top navigation ─── */}
       <header className="home-nav">
         <div className="home-nav-inner">
@@ -1637,6 +1919,34 @@ function Landing({ onNav }) {
         </div>
       </section>
 
+      {/* ─── Story strip (Instagram-feel) + Trending searches ─── */}
+      <section className="home-section" style={{ paddingTop: 8, paddingBottom: 32 }}>
+        <div className="home-stories">
+          {stories.map(s => (
+            <button key={s.id} className="home-story" onClick={() => onNav('buyer-shop')}>
+              <div className="home-story-ring">
+                <div className="home-story-ring-inner">
+                  <div className="home-story-img" style={{ background: 'linear-gradient(135deg, var(--rose-light), var(--gold-light))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+                    {s.emoji}
+                  </div>
+                </div>
+              </div>
+              <div className="home-story-label">{s.label}</div>
+            </button>
+          ))}
+        </div>
+        <div className="home-trending-searches">
+          <span className="home-trending-searches-label">Trending searches</span>
+          {trendingSearches.map(t => (
+            <button
+              key={t}
+              className="home-trending-chip"
+              onClick={() => { setSearchQuery(t); try { localStorage.setItem('styli-search', t); } catch {} onNav('buyer-shop'); }}
+            ><span className="fire">🔥</span>{t}</button>
+          ))}
+        </div>
+      </section>
+
       {/* ─── Shop by Category ─── */}
       <section className="home-section">
         <div className="home-section-head">
@@ -1656,6 +1966,32 @@ function Landing({ onNav }) {
               </div>
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* ─── Offers strip (Ajio-style colored offer cards) ─── */}
+      <section className="home-section" style={{ paddingTop: 8 }}>
+        <div className="home-offers-strip">
+          <div className="home-offer-card home-offer-1" onClick={() => onNav('buyer-shop')}>
+            <div className="of-tag">Limited time</div>
+            <div className="of-title">Up to <em>50% off</em></div>
+            <div className="of-sub">Sitewide sale on bestsellers · Ends Sunday</div>
+          </div>
+          <div className="home-offer-card home-offer-2" onClick={() => onNav('buyer-shop')}>
+            <div className="of-tag">First order</div>
+            <div className="of-title">Flat ₹500 off</div>
+            <div className="of-sub">Use code STYLI500 · Min cart ₹1499</div>
+          </div>
+          <div className="home-offer-card home-offer-3" onClick={() => onNav('buyer-shop')}>
+            <div className="of-tag">Free gift</div>
+            <div className="of-title">Tote bag with order</div>
+            <div className="of-sub">On every order above ₹2,499 this week</div>
+          </div>
+          <div className="home-offer-card home-offer-4" onClick={() => onNav('buyer-shop')}>
+            <div className="of-tag">Membership</div>
+            <div className="of-title">Styli Insider</div>
+            <div className="of-sub">Early access · 10% extra off · Free shipping always</div>
+          </div>
         </div>
       </section>
 
@@ -1711,6 +2047,104 @@ function Landing({ onNav }) {
           </div>
           <div className="home-products-grid">
             {newArrivals.map(renderProduct)}
+          </div>
+        </section>
+      )}
+
+      {/* ─── Curated Collections (Ajio-style themed edits) ─── */}
+      <section className="home-section">
+        <div className="home-section-head">
+          <div>
+            <div className="home-section-eyebrow">Curated edits</div>
+            <h2 className="home-section-title">Collections we <em>love</em></h2>
+          </div>
+          <span className="home-section-link" onClick={() => onNav('buyer-shop')}>All collections</span>
+        </div>
+        <div className="home-collections">
+          <div className="home-collection" onClick={() => onNav('buyer-shop')}>
+            <div className="home-collection-img col-grad-1"></div>
+            <div className="home-collection-content">
+              <div className="home-collection-eyebrow">Edit · 24 pieces</div>
+              <div className="home-collection-title">The Workwear Edit</div>
+              <div className="home-collection-meta">Polished pieces for the office and beyond</div>
+            </div>
+          </div>
+          <div className="home-collection" onClick={() => onNav('buyer-shop')}>
+            <div className="home-collection-img col-grad-2"></div>
+            <div className="home-collection-content">
+              <div className="home-collection-eyebrow">Edit · 18 pieces</div>
+              <div className="home-collection-title">Date Night Drama</div>
+              <div className="home-collection-meta">Statement pieces for evenings out</div>
+            </div>
+          </div>
+          <div className="home-collection" onClick={() => onNav('buyer-shop')}>
+            <div className="home-collection-img col-grad-3"></div>
+            <div className="home-collection-content">
+              <div className="home-collection-eyebrow">Edit · 32 pieces</div>
+              <div className="home-collection-title">Festive Heritage</div>
+              <div className="home-collection-meta">Hand-crafted ethnic wear from across India</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Brand of the Day ─── */}
+      {brandOfDay && (
+        <section className="home-section">
+          <div className="home-brand-spotlight">
+            <div className="home-brand-spotlight-visual">
+              <div className="home-hero-visual-tag">
+                <div>
+                  <div className="ht-title">{brandOfDay.name}</div>
+                  <div className="ht-sub">{brandOfDay.city}</div>
+                </div>
+                <div className="ht-arrow">→</div>
+              </div>
+            </div>
+            <div className="home-brand-spotlight-content">
+              <div className="home-brand-spotlight-eyebrow">Brand of the Day</div>
+              <h2 className="home-brand-spotlight-name">{brandOfDay.name}</h2>
+              <p className="home-brand-spotlight-desc">
+                Hand-crafted in {brandOfDay.city}, {brandOfDay.name} brings together heritage techniques
+                and modern silhouettes. {brandOfDay.type === 'small' ? 'A small atelier with a distinct point of view' : 'A loved brand trusted across India'}, exclusively on Styli.
+              </p>
+              <div className="home-brand-spotlight-stats">
+                <div className="home-brand-spotlight-stat">
+                  <div className="num">{brandOfDayProducts.length}</div>
+                  <div className="lbl">Pieces live</div>
+                </div>
+                <div className="home-brand-spotlight-stat">
+                  <div className="num">{(brandOfDay.score || 95)}</div>
+                  <div className="lbl">Style score</div>
+                </div>
+                <div className="home-brand-spotlight-stat">
+                  <div className="num">{formatINR(brandOfDayGmv || 84500)}</div>
+                  <div className="lbl">Sold this month</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn-luxe" onClick={() => onNav('buyer-shop')}>Shop the brand</button>
+                <button className="btn-luxe-outline" onClick={() => onNav('buyer-shop')}>Read the story</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Recently Viewed (only shown if buyer has history) ─── */}
+      {recentlyViewed.length > 0 && (
+        <section className="home-section">
+          <div className="home-recently">
+            <div className="home-section-head">
+              <div>
+                <div className="home-section-eyebrow">For you</div>
+                <h2 className="home-section-title">Recently <em>viewed</em></h2>
+              </div>
+              <span className="home-section-link" onClick={() => { try { localStorage.removeItem(RECENTLY_VIEWED_KEY); } catch {}; addToast('History cleared', 'info'); }}>Clear history</span>
+            </div>
+            <div className="home-products-grid">
+              {recentlyViewed.map(renderProduct)}
+            </div>
           </div>
         </section>
       )}
@@ -2339,6 +2773,7 @@ function BuyerShop({ onNav }) {
             return (
               <button key={p.id} className="product-card" onClick={() => { onNav('buyer-product', p.id); }}>
                 <div className={`product-image ${p.grad}`}>
+                  {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
                   <div className="match-badge">{p.match}% match</div>
                   <button
                     className={`wish-btn ${wished ? 'active' : ''}`}
@@ -2367,6 +2802,9 @@ function BuyerProduct({ onNav, productId }) {
   const p = state.products.find(x => x.id === productId);
   const [size, setSize] = useState(null);
 
+  // Record this product into the buyer's recently-viewed list
+  useEffect(() => { if (productId) recordRecentlyViewed(productId); }, [productId]);
+
   if (!p) { onNav('buyer-shop'); return null; }
   const v = state.vendors.find(x => x.id === p.vendorId);
 
@@ -2386,7 +2824,9 @@ function BuyerProduct({ onNav, productId }) {
           <a onClick={() => onNav('buyer-shop')}>Shop</a> / <a>{p.category}</a> / <span>{p.name}</span>
         </div>
         <div className="product-detail" style={{ padding: 0 }}>
-          <div className={`detail-image-large ${p.grad}`}></div>
+          <div className={`detail-image-large ${p.grad}`}>
+            {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+          </div>
           <div>
             <div className="detail-brand">{v?.name || 'Brand'}</div>
             <h1 className="detail-name">{p.name}</h1>
@@ -2471,7 +2911,9 @@ function BuyerCart({ onNav }) {
           <div>
             {items.map(it => (
               <div key={it.productId + it.size} className="cart-item">
-                <div className={`cart-item-img ${it.product.grad}`}></div>
+                <div className={`cart-item-img ${it.product.grad}`}>
+                  {it.product.imageUrl && <img src={it.product.imageUrl} alt={it.product.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+                </div>
                 <div className="cart-item-info">
                   <div className="cart-item-brand">{it.vendor?.name}</div>
                   <div className="cart-item-name">{it.product.name}</div>
@@ -2544,7 +2986,9 @@ function BuyerOrders({ onNav }) {
               <div key={o.id} className="panel" style={{ marginBottom: 12, padding: 18 }}>
                 <div className="flex-between">
                   <div className="product-row">
-                    <div className={`product-thumb ${p?.grad || 'grad-1'}`} style={{ width: 60, height: 60 }}></div>
+                    <div className={`product-thumb ${p?.grad || 'grad-1'}`} style={{ width: 60, height: 60 }}>
+                      {p?.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
+                    </div>
                     <div>
                       <div className="cell-primary" style={{ fontSize: 15 }}>{p?.name || o.productId}</div>
                       <div className="cell-sub">{v?.name} · Size {o.size} · Qty {o.qty}</div>
@@ -2668,6 +3112,7 @@ function BuyerWishlist({ onNav }) {
               return (
                 <div key={p.id} className="product-card" style={{ cursor: 'default' }}>
                   <div className={`product-image ${p.grad}`}>
+                    {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}
                     <button
                       className="wish-btn active"
                       onClick={(e) => { e.stopPropagation(); actions.toggleWishlist(p.id); addToast('Removed from wishlist', 'info'); }}
