@@ -803,23 +803,129 @@ textarea.field-input { resize: vertical; min-height: 70px; }
 }
 .home-hero-visual {
   aspect-ratio: 4/5; border-radius: 24px; overflow: hidden; position: relative;
-  background: linear-gradient(135deg, #E8C4B5 0%, #C97B63 60%, #A85A42 100%);
-  box-shadow: 0 30px 60px -20px rgba(168, 90, 66, 0.35);
+  background: linear-gradient(135deg, #5A4A3D 0%, #8B6F40 60%, #C97B63 100%);
+  box-shadow: 0 40px 80px -25px rgba(26, 22, 18, 0.45);
 }
+.home-hero-visual img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  z-index: 0; opacity: 0; transition: opacity 0.5s ease;
+}
+.home-hero-visual img.loaded { opacity: 0.92; }
+
+/* Cinematic overlay gradient */
+.home-hero-visual::before {
+  content: ''; position: absolute; inset: 0; z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.35) 0%, transparent 25%, transparent 55%, rgba(0,0,0,0.55) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.15) 0%, transparent 50%);
+}
+/* Film grain */
 .home-hero-visual::after {
-  content: ''; position: absolute; inset: 0;
-  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence baseFrequency='0.85'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.18'/></svg>");
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence baseFrequency='0.85'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.20'/></svg>");
   mix-blend-mode: overlay;
 }
-.home-hero-visual-tag {
-  position: absolute; bottom: 32px; left: 32px; right: 32px;
-  background: rgba(26, 22, 18, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  color: var(--cream-light); padding: 18px 22px; border-radius: 14px;
-  display: flex; justify-content: space-between; align-items: center;
+
+/* Poster — corner stamps */
+.poster-stamp {
+  position: absolute; top: 28px; left: 28px; z-index: 3;
+  color: white; font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.22em; line-height: 1.5;
+  text-transform: uppercase; font-weight: 500;
 }
-.home-hero-visual-tag .ht-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500; }
-.home-hero-visual-tag .ht-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; letter-spacing: 0.04em; }
-.home-hero-visual-tag .ht-arrow { font-size: 22px; }
+.poster-stamp .stamp-divider {
+  width: 28px; height: 1px; background: rgba(255,255,255,0.55); margin: 8px 0;
+}
+.poster-edition {
+  position: absolute; top: 24px; right: 28px; z-index: 3;
+  text-align: right; color: white;
+}
+.poster-edition .pe-label {
+  font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace; opacity: 0.75; margin-bottom: 2px;
+}
+.poster-edition .pe-num {
+  font-family: 'Fraunces', serif; font-size: 64px; font-weight: 400; line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
+/* Center serif title — magazine cover */
+.poster-title {
+  position: absolute; left: 28px; right: 28px; bottom: 38%; z-index: 3;
+  color: white;
+}
+.poster-title .pt-kicker {
+  font-size: 11px; letter-spacing: 0.36em; font-weight: 600;
+  text-transform: uppercase; opacity: 0.9; margin-bottom: 8px;
+}
+.poster-title .pt-headline {
+  font-family: 'Fraunces', serif; font-size: 84px; line-height: 0.9;
+  font-weight: 400; letter-spacing: -0.04em;
+}
+.poster-title .pt-headline em {
+  font-style: italic; font-weight: 500; color: #F3DDD2;
+}
+.poster-title .pt-sub {
+  font-size: 11px; letter-spacing: 0.36em; font-weight: 600;
+  text-transform: uppercase; opacity: 0.9; margin-top: 12px;
+}
+
+/* Bottom rule + featured pieces strip */
+.poster-rule {
+  position: absolute; left: 28px; right: 28px; bottom: 132px; z-index: 3;
+  height: 1px; background: rgba(255,255,255,0.4);
+}
+.poster-credits {
+  position: absolute; left: 28px; right: 28px; bottom: 96px; z-index: 3;
+  display: flex; justify-content: space-between; align-items: center;
+  color: white; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.85;
+}
+.poster-pieces {
+  position: absolute; left: 28px; right: 28px; bottom: 28px; z-index: 3;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.25);
+}
+.poster-piece { color: white; }
+.poster-piece .pp-num {
+  font-family: 'Fraunces', serif; font-size: 16px; font-weight: 500;
+  font-style: italic; opacity: 0.7; margin-bottom: 4px;
+}
+.poster-piece .pp-name {
+  font-size: 11.5px; line-height: 1.3; font-weight: 500;
+  margin-bottom: 2px;
+}
+.poster-piece .pp-price {
+  font-family: 'Fraunces', serif; font-size: 13px; opacity: 0.85;
+}
+
+/* Decorative bottom-left circle stamp (like a vinyl/wax seal) */
+.poster-seal {
+  position: absolute; bottom: 168px; right: 32px; z-index: 3;
+  width: 76px; height: 76px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.5);
+  display: flex; align-items: center; justify-content: center;
+  color: white; text-align: center; line-height: 1.1;
+  font-family: 'Fraunces', serif; font-size: 11px; font-weight: 500;
+  font-style: italic; padding: 6px;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.15);
+  transform: rotate(-8deg); cursor: pointer;
+  transition: transform 0.3s;
+}
+.poster-seal:hover { transform: rotate(0deg) scale(1.04); }
+.poster-seal .seal-line { display: block; }
+.poster-seal .seal-strong { font-size: 14px; font-weight: 600; }
+
+/* Mobile poster scaling */
+@media (max-width: 700px) {
+  .poster-edition .pe-num { font-size: 44px; }
+  .poster-title .pt-headline { font-size: 56px; }
+  .poster-pieces { grid-template-columns: repeat(2, 1fr); }
+  .poster-pieces .poster-piece:nth-child(3) { display: none; }
+  .poster-seal { width: 60px; height: 60px; font-size: 9px; bottom: 200px; right: 24px; }
+}
 
 /* Section base styling */
 .home-section { max-width: 1440px; margin: 0 auto; padding: 64px 36px; }
@@ -1936,13 +2042,70 @@ function Landing({ onNav }) {
             </div>
           </div>
         </div>
-        <div className="home-hero-visual">
-          <div className="home-hero-visual-tag">
-            <div>
-              <div className="ht-title">Spring Edit · 2026</div>
-              <div className="ht-sub">Hand-curated by our stylists</div>
+        <div className="home-hero-visual" onClick={() => onNav('buyer-shop')} style={{ cursor: 'pointer' }}>
+          {/* Background fashion photo */}
+          <img
+            src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1000&q=85&auto=format"
+            alt="Spring Edit cover"
+            onLoad={e => e.currentTarget.classList.add('loaded')}
+            onError={e => {
+              if (!e.currentTarget.dataset.fellback) {
+                e.currentTarget.dataset.fellback = '1';
+                e.currentTarget.src = 'https://picsum.photos/seed/styli-hero/800/1000';
+              }
+            }}
+          />
+
+          {/* Top-left: vol stamp */}
+          <div className="poster-stamp">
+            <div>STYLI MAGAZINE</div>
+            <div className="stamp-divider"></div>
+            <div>VOL. 04 · SS / 2026</div>
+            <div>FROM ₹899</div>
+          </div>
+
+          {/* Top-right: edition number */}
+          <div className="poster-edition">
+            <div className="pe-label">№ Edition</div>
+            <div className="pe-num">04</div>
+          </div>
+
+          {/* Center: oversized serif title */}
+          <div className="poster-title">
+            <div className="pt-kicker">— The —</div>
+            <div className="pt-headline">Spring <em>Edit</em></div>
+            <div className="pt-sub">— A study in linen, light & color —</div>
+          </div>
+
+          {/* Decorative wax-seal circle */}
+          <div className="poster-seal">
+            <span className="seal-line">Stylist's</span>
+            <span className="seal-strong">Pick</span>
+          </div>
+
+          {/* Credits row */}
+          <div className="poster-credits">
+            <span>Curated · Apr 2026</span>
+            <span>9 pieces</span>
+          </div>
+
+          {/* Bottom: featured pieces strip */}
+          <div className="poster-pieces">
+            <div className="poster-piece">
+              <div className="pp-num">№ 01</div>
+              <div className="pp-name">Block Print Kurta</div>
+              <div className="pp-price">{formatINR(1599)}</div>
             </div>
-            <div className="ht-arrow" onClick={() => onNav('buyer-shop')} style={{ cursor: 'pointer' }}>→</div>
+            <div className="poster-piece">
+              <div className="pp-num">№ 02</div>
+              <div className="pp-name">Linen Camp Shirt</div>
+              <div className="pp-price">{formatINR(1499)}</div>
+            </div>
+            <div className="poster-piece">
+              <div className="pp-num">№ 03</div>
+              <div className="pp-name">Tiered Cotton Dress</div>
+              <div className="pp-price">{formatINR(2199)}</div>
+            </div>
           </div>
         </div>
       </section>
