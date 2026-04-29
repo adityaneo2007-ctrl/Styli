@@ -1536,6 +1536,24 @@ const defaultState = () => ({
     { id: 'tm-admin', email: 'team@styli.in',  password: 'team123',  name: 'Operations Lead',   role: 'team-admin', joinedAt: '12 Feb 2026' },
     { id: 'tm-user',  email: 'staff@styli.in', password: 'staff123', name: 'Junior Staff',      role: 'team-user',  joinedAt: '4 Apr 2026' },
   ],
+  permissions: { ...{
+    'view.dashboard':       ['team-super', 'team-admin', 'team-user'],
+    'view.vendors':         ['team-super', 'team-admin', 'team-user'],
+    'view.products':        ['team-super', 'team-admin', 'team-user'],
+    'view.orders':          ['team-super', 'team-admin', 'team-user'],
+    'view.customers':       ['team-super', 'team-admin', 'team-user'],
+    'edit.vendors.approve': ['team-super', 'team-admin'],
+    'edit.products.unlist': ['team-super', 'team-admin'],
+    'edit.orders.refund':   ['team-super', 'team-admin'],
+    'edit.vendors.delete':  ['team-super'],
+    'edit.products.delete': ['team-super'],
+    'view.team':            ['team-super'],
+    'edit.team':            ['team-super'],
+    'view.settings':        ['team-super'],
+    'edit.settings':        ['team-super'],
+    'view.permissions':     ['team-super'],
+    'edit.permissions':     ['team-super'],
+  } },
 });
 
 // ============ TEAM CONSOLE — ROLES & PERMISSIONS ============
@@ -1545,7 +1563,8 @@ const TEAM_ROLE_LABEL = {
   'team-user':  'User',
 };
 
-const TEAM_PERMISSIONS = {
+// Default permissions matrix — Superadmin can edit at runtime via Team → Permissions
+const DEFAULT_TEAM_PERMISSIONS = {
   // Read access
   'view.dashboard':       ['team-super', 'team-admin', 'team-user'],
   'view.vendors':         ['team-super', 'team-admin', 'team-user'],
@@ -1563,9 +1582,40 @@ const TEAM_PERMISSIONS = {
   'edit.team':            ['team-super'],
   'view.settings':        ['team-super'],
   'edit.settings':        ['team-super'],
+  // Permissions editor itself (Superadmin only — protect against lockout)
+  'view.permissions':     ['team-super'],
+  'edit.permissions':     ['team-super'],
 };
 
+// Friendly labels and groupings for the permissions editor UI
+const PERMISSION_LABELS = {
+  'view.dashboard':       { group: 'View',          label: 'View dashboard' },
+  'view.vendors':         { group: 'View',          label: 'View vendors' },
+  'view.products':        { group: 'View',          label: 'View products' },
+  'view.orders':          { group: 'View',          label: 'View orders' },
+  'view.customers':       { group: 'View',          label: 'View customers' },
+  'edit.vendors.approve': { group: 'Operations',    label: 'Approve / reject vendors' },
+  'edit.products.unlist': { group: 'Operations',    label: 'Unlist / re-list products' },
+  'edit.orders.refund':   { group: 'Operations',    label: 'Refund orders' },
+  'edit.vendors.delete':  { group: 'Destructive',   label: 'Delete vendors' },
+  'edit.products.delete': { group: 'Destructive',   label: 'Delete products' },
+  'view.team':            { group: 'Governance',    label: 'View team members' },
+  'edit.team':            { group: 'Governance',    label: 'Add / remove team members' },
+  'view.settings':        { group: 'Governance',    label: 'View settings' },
+  'edit.settings':        { group: 'Governance',    label: 'Edit settings' },
+  'view.permissions':     { group: 'Governance',    label: 'View permissions editor' },
+  'edit.permissions':     { group: 'Governance',    label: 'Edit permissions matrix' },
+};
+
+// Live permissions — gets synced from state.permissions inside AppProvider on every render.
+// Falls back to DEFAULT_TEAM_PERMISSIONS if state.permissions is not set yet.
+let TEAM_PERMISSIONS = { ...DEFAULT_TEAM_PERMISSIONS };
 const can = (action, role) => (TEAM_PERMISSIONS[action] || []).includes(role);
+
+// Compatibility export for any code that read TEAM_ROLE_LABEL nearby
+function deepClonePermissions(p) {
+  return Object.fromEntries(Object.entries(p || {}).map(([k, v]) => [k, [...(v || [])]]));
+}
 
 function loadState() {
   try {
@@ -1589,6 +1639,11 @@ function AppProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => { saveState(state); }, [state]);
+
+  // Sync the live TEAM_PERMISSIONS module-level variable with state on every render.
+  // This way the global can() helper always reflects the latest edits from the
+  // Permissions editor without rewriting every call site.
+  TEAM_PERMISSIONS = state.permissions || DEFAULT_TEAM_PERMISSIONS;
 
   const addToast = useCallback((message, type='info', icon='✓') => {
     const id = Date.now() + Math.random();
@@ -1621,6 +1676,18 @@ function AppProvider({ children }) {
       ...s,
       teamUsers: (s.teamUsers || []).map(t => t.id === id ? { ...t, role } : t),
     })),
+
+    // Permissions editor actions (Superadmin only — UI also gates these)
+    togglePermission: (action, role) => setState(s => {
+      const perms = deepClonePermissions(s.permissions || DEFAULT_TEAM_PERMISSIONS);
+      const current = perms[action] || [];
+      const idx = current.indexOf(role);
+      if (idx >= 0) current.splice(idx, 1);
+      else current.push(role);
+      perms[action] = current;
+      return { ...s, permissions: perms };
+    }),
+    resetPermissions: () => setState(s => ({ ...s, permissions: deepClonePermissions(DEFAULT_TEAM_PERMISSIONS) })),
 
     // Vendor signup
     applyVendor: (data) => setState(s => {
@@ -3554,8 +3621,9 @@ function TeamConsole({ onNav }) {
     { id: 'customers', label: 'Customers', icon: '◈', perm: 'view.customers' },
   ];
   const ADMIN_NAV = [
-    { id: 'team',     label: 'Team',     icon: '◆', perm: 'view.team' },
-    { id: 'settings', label: 'Settings', icon: '⚙', perm: 'view.settings' },
+    { id: 'team',        label: 'Team',        icon: '◆', perm: 'view.team' },
+    { id: 'permissions', label: 'Permissions', icon: '◬', perm: 'view.permissions' },
+    { id: 'settings',    label: 'Settings',    icon: '⚙', perm: 'view.settings' },
   ];
   const visibleNav = NAV_ITEMS.filter(item => can(item.perm, role));
   const visibleAdmin = ADMIN_NAV.filter(item => can(item.perm, role));
@@ -3622,8 +3690,9 @@ function TeamConsole({ onNav }) {
         {active === 'products'  && <TeamProductsView role={role} />}
         {active === 'orders'    && <TeamOrdersView role={role} />}
         {active === 'customers' && <TeamCustomersView role={role} />}
-        {active === 'team'      && <TeamMembersView role={role} />}
-        {active === 'settings'  && <TeamSettingsView role={role} />}
+        {active === 'team'        && <TeamMembersView role={role} />}
+        {active === 'permissions' && <TeamPermissionsView role={role} />}
+        {active === 'settings'    && <TeamSettingsView role={role} />}
       </main>
     </div>
   );
@@ -3943,6 +4012,115 @@ function TeamMembersView({ role }) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function TeamPermissionsView({ role }) {
+  const { state, actions, addToast } = useApp();
+  const canEdit = can('edit.permissions', role);
+  const perms = state.permissions || DEFAULT_TEAM_PERMISSIONS;
+
+  // Group permissions by their category for a cleaner table
+  const grouped = {};
+  Object.entries(PERMISSION_LABELS).forEach(([action, info]) => {
+    if (!grouped[info.group]) grouped[info.group] = [];
+    grouped[info.group].push({ action, label: info.label });
+  });
+  const groupOrder = ['View', 'Operations', 'Destructive', 'Governance'];
+
+  const ROLES = ['team-super', 'team-admin', 'team-user'];
+  const ROLE_CLASS = { 'team-super': 'super', 'team-admin': 'admin', 'team-user': 'user' };
+
+  const handleToggle = (action, r) => {
+    if (!canEdit) return;
+    // Safety guard — never let Superadmin lose 'edit.permissions' (would lock everyone out)
+    if (action === 'edit.permissions' && r === 'team-super') {
+      addToast('Cannot remove permissions editor from Superadmin', 'warn');
+      return;
+    }
+    actions.togglePermission(action, r);
+  };
+
+  const handleReset = () => {
+    if (!canEdit) return;
+    if (window.confirm('Reset all permissions to defaults? This affects every team member immediately.')) {
+      actions.resetPermissions();
+      addToast('Permissions reset to defaults', 'success');
+    }
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Permissions</h1>
+          <div className="page-sub">Edit which roles can perform each action. Changes apply instantly to every signed-in team member.</div>
+        </div>
+        {canEdit && <button className="btn btn-secondary" onClick={handleReset}>Reset to defaults</button>}
+      </div>
+
+      <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="team-table" style={{ borderRadius: 0, border: 'none' }}>
+          <thead>
+            <tr>
+              <th style={{ width: '50%' }}>Action</th>
+              {ROLES.map(r => (
+                <th key={r} style={{ textAlign: 'center', width: '14%' }}>
+                  <span className={`role-pill ${ROLE_CLASS[r]}`}>{TEAM_ROLE_LABEL[r]}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groupOrder.map(group => (
+              <React.Fragment key={group}>
+                <tr>
+                  <td colSpan={4} style={{
+                    background: 'var(--cream-light)',
+                    fontSize: 11, color: 'var(--muted)',
+                    letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600,
+                    padding: '10px 16px',
+                  }}>{group}</td>
+                </tr>
+                {(grouped[group] || []).map(({ action, label }) => (
+                  <tr key={action}>
+                    <td>
+                      <strong style={{ fontSize: 13.5 }}>{label}</strong>
+                      <div className="cell-sub mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{action}</div>
+                    </td>
+                    {ROLES.map(r => {
+                      const allowed = (perms[action] || []).includes(r);
+                      const isLocked = action === 'edit.permissions' && r === 'team-super';
+                      return (
+                        <td key={r} style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={allowed}
+                            disabled={!canEdit || isLocked}
+                            onChange={() => handleToggle(action, r)}
+                            style={{
+                              width: 18, height: 18, cursor: canEdit && !isLocked ? 'pointer' : 'not-allowed',
+                              accentColor: r === 'team-super' ? 'var(--rose-deep)' : r === 'team-admin' ? 'var(--gold-deep)' : 'var(--sage)',
+                            }}
+                            title={isLocked ? 'Cannot remove — would lock everyone out of editing permissions' : ''}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel" style={{ padding: 18, marginTop: 20, background: 'var(--cream-light)', borderColor: 'var(--gold-light)' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+          <strong>Heads up:</strong> Toggling a checkbox saves immediately — no separate Save button. The Superadmin's <em>edit permissions</em> checkbox is locked to prevent accidentally locking yourself out. To restore the original setup, use <em>Reset to defaults</em> (top right).
+        </div>
+      </div>
     </div>
   );
 }
