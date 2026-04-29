@@ -1961,19 +1961,46 @@ function Landing({ onNav }) {
     else onNav('buyer-login');
   };
 
-  const handleNewsletter = (e) => {
+  const handleNewsletter = async (e) => {
     e.preventDefault();
-    if (!newsletterEmail.trim() || !newsletterEmail.includes('@')) {
+    const email = newsletterEmail.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       addToast('Enter a valid email', 'warn');
       return;
     }
+
+    // Try the real D1-backed API first (works on Cloudflare Pages with binding)
+    let savedToDB = false;
     try {
-      const list = JSON.parse(localStorage.getItem('styli-newsletter') || '[]');
-      list.push({ email: newsletterEmail.trim(), at: Date.now() });
-      localStorage.setItem('styli-newsletter', JSON.stringify(list));
-    } catch {}
-    addToast('Subscribed — welcome to the list 🎉', 'success');
-    setNewsletterEmail('');
+      const res = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'homepage' }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        savedToDB = true;
+        addToast(
+          data.alreadySubscribed
+            ? "You're already on the list — see you Sunday"
+            : 'Subscribed — welcome to the list 🎉',
+          'success'
+        );
+        setNewsletterEmail('');
+        return;
+      }
+    } catch (err) { /* network or no API — fall through */ }
+
+    // Fallback to localStorage (local preview, or D1 binding not set up yet)
+    if (!savedToDB) {
+      try {
+        const list = JSON.parse(localStorage.getItem('styli-newsletter') || '[]');
+        list.push({ email, at: Date.now() });
+        localStorage.setItem('styli-newsletter', JSON.stringify(list));
+      } catch {}
+      addToast('Subscribed — welcome to the list 🎉', 'success');
+      setNewsletterEmail('');
+    }
   };
 
   const handleProductClick = (id) => onNav('buyer-product', id);
