@@ -4654,9 +4654,23 @@ function AdminDashboard({ onNav }) {
     { section: 'Main', items: [{ id: 'overview', label: 'Overview', icon: '◐' }] },
     { section: 'Marketplace', items: [
       { id: 'applications', label: 'Applications', icon: '◎' },
-      { id: 'vendors', label: 'All vendors', icon: '◈' },
-      { id: 'products', label: 'All products', icon: '▦' },
-      { id: 'orders', label: 'All orders', icon: '◊' },
+      { id: 'vendors',      label: 'All vendors',  icon: '◈' },
+      { id: 'products',     label: 'All products', icon: '▦' },
+      { id: 'orders',       label: 'All orders',   icon: '◊' },
+    ]},
+    { section: 'Users', items: [
+      { id: 'customers',    label: 'Customers',     icon: '☺' },
+      { id: 'newsletter',   label: 'Newsletter',    icon: '✉' },
+    ]},
+    { section: 'Operations', items: [
+      { id: 'returns',      label: 'Returns',       icon: '↺' },
+      { id: 'reviews',      label: 'Reviews',       icon: '★' },
+    ]},
+    { section: 'Governance', items: [
+      { id: 'team',         label: 'Team members',  icon: '◆' },
+      { id: 'roles',        label: 'Roles & perms', icon: '◬' },
+      { id: 'settings',     label: 'Settings',      icon: '⚙' },
+      { id: 'audit',        label: 'Audit log',     icon: '☰' },
     ]},
   ];
 
@@ -4692,6 +4706,14 @@ function AdminDashboard({ onNav }) {
         {active === 'vendors' && <AdminVendors />}
         {active === 'products' && <AdminProducts />}
         {active === 'orders' && <AdminOrders />}
+        {active === 'customers' && <AdminCustomers />}
+        {active === 'newsletter' && <AdminNewsletter />}
+        {active === 'returns' && <AdminReturns />}
+        {active === 'reviews' && <AdminReviews />}
+        {active === 'team' && <AdminTeam onNav={onNav} />}
+        {active === 'roles' && <AdminRoles onNav={onNav} />}
+        {active === 'settings' && <AdminSettings />}
+        {active === 'audit' && <AdminAuditLog />}
       </main>
     </div>
   );
@@ -4818,28 +4840,47 @@ function AdminVendors() {
 }
 
 function AdminProducts() {
-  const { state } = useApp();
+  const { state, actions, addToast } = useApp();
   const [search, setSearch] = useState('');
-  const filtered = state.products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
+  const [filter, setFilter] = useState('all'); // all | live | hidden
+  const filtered = state.products.filter(p =>
+    (!search || p.name.toLowerCase().includes(search.toLowerCase())) &&
+    (filter === 'all' || (filter === 'live' && p.listed) || (filter === 'hidden' && !p.listed))
+  );
+  const remove = (id, name) => {
+    if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
+      actions.deleteProduct(id);
+      addToast('Product deleted', 'info');
+    }
+  };
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">All products</h1><div className="page-sub">{state.products.length} products across all vendors</div></div></div>
-      <div className="filter-bar">
-        <input className="search-field" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="page-header"><div><h1 className="page-title">All products</h1><div className="page-sub">{state.products.length} products across all vendors · {state.products.filter(p => p.listed).length} live</div></div></div>
+      <div className="filter-bar" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+        <input className="search-field" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
+        <select className="search-field" value={filter} onChange={e => setFilter(e.target.value)}>
+          <option value="all">All</option>
+          <option value="live">Live only</option>
+          <option value="hidden">Hidden only</option>
+        </select>
       </div>
       <div className="panel">
         <table className="table">
-          <thead><tr><th>Product</th><th>Vendor</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th></tr></thead>
+          <thead><tr><th>Product</th><th>Vendor</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
           <tbody>
             {filtered.map(p => {
               const v = state.vendors.find(x => x.id === p.vendorId);
               return <tr key={p.id}>
-                <td><div className="product-row"><div className={`product-thumb ${p.grad}`}></div><div><div className="cell-primary">{p.name}</div><div className="cell-sub mono">{p.id}</div></div></div></td>
+                <td><div className="product-row"><div className={`product-thumb ${p.grad}`}>{p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}</div><div><div className="cell-primary">{p.name}</div><div className="cell-sub mono">{p.id}</div></div></div></td>
                 <td>{v?.name || '—'}</td>
                 <td>{p.category}</td>
                 <td className="cell-primary">{formatINR(p.price)}</td>
                 <td>{totalStock(p.stock)}</td>
                 <td>{p.listed ? <span className="badge badge-ok">Live</span> : <span className="badge badge-neutral">Unlisted</span>}</td>
+                <td style={{textAlign:'right'}}>
+                  <button className="btn btn-small btn-ghost" onClick={() => { actions.toggleProductListed(p.id); addToast(p.listed ? 'Product unlisted' : 'Product re-listed', 'info'); }}>{p.listed ? 'Unlist' : 'Re-list'}</button>
+                  <button className="btn btn-small btn-ghost" onClick={() => remove(p.id, p.name)} style={{ marginLeft: 6, color: 'var(--alert)' }}>Delete</button>
+                </td>
               </tr>;
             })}
           </tbody>
@@ -4850,15 +4891,27 @@ function AdminProducts() {
 }
 
 function AdminOrders() {
-  const { state } = useApp();
+  const { state, addToast } = useApp();
+  const [filter, setFilter] = useState('all');
+  const filtered = filter === 'all' ? state.orders : state.orders.filter(o => o.status === filter);
+  const totalGmv = state.orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.price * o.qty, 0);
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">All orders</h1><div className="page-sub">{state.orders.length} orders across the platform</div></div></div>
+      <div className="page-header"><div><h1 className="page-title">All orders</h1><div className="page-sub">{state.orders.length} orders · {formatINR(totalGmv)} GMV</div></div></div>
+      <div className="filter-bar" style={{ marginBottom: 16 }}>
+        <select className="search-field" value={filter} onChange={e => setFilter(e.target.value)}>
+          <option value="all">All statuses</option>
+          <option value="to-ship">To ship</option>
+          <option value="in-transit">In transit</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
       <div className="panel">
         <table className="table">
-          <thead><tr><th>Order</th><th>Product</th><th>Vendor</th><th>Buyer</th><th>Amount</th><th>Status</th></tr></thead>
+          <thead><tr><th>Order</th><th>Product</th><th>Vendor</th><th>Buyer</th><th>City</th><th>Amount</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
           <tbody>
-            {state.orders.map(o => {
+            {filtered.map(o => {
               const p = state.products.find(x => x.id === o.productId);
               const v = state.vendors.find(x => x.id === o.vendorId);
               return <tr key={o.id}>
@@ -4866,6 +4919,7 @@ function AdminOrders() {
                 <td className="cell-primary">{p?.name || o.productId} · {o.size}</td>
                 <td>{v?.name || '—'}</td>
                 <td>{o.buyer}</td>
+                <td className="cell-sub">{o.city}</td>
                 <td className="cell-primary">{formatINR(o.price * o.qty)}</td>
                 <td>{
                   o.status === 'to-ship' ? <span className="badge badge-warn">To ship</span> :
@@ -4873,10 +4927,417 @@ function AdminOrders() {
                   o.status === 'delivered' ? <span className="badge badge-ok">Delivered</span> :
                   <span className="badge badge-alert">Cancelled</span>
                 }</td>
+                <td style={{textAlign:'right'}}>
+                  {o.status !== 'cancelled' && o.status !== 'delivered' && <button className="btn btn-small btn-ghost" onClick={() => addToast('Refund initiated (mock — wires to /api/orders/refund)', 'info')}>Refund</button>}
+                </td>
               </tr>;
             })}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// ============ ADMIN — NEW VIEWS (Customers / Newsletter / Returns / Reviews / Team / Roles / Settings / Audit) ============
+
+function AdminCustomers() {
+  const { state, addToast } = useApp();
+  const [search, setSearch] = useState('');
+
+  // Build customer rollup from orders + buyers
+  const customerMap = new Map();
+  state.orders.forEach(o => {
+    if (!customerMap.has(o.buyerId)) {
+      customerMap.set(o.buyerId, { id: o.buyerId, name: o.buyer, city: o.city, orders: 0, gmv: 0, lastOrder: null });
+    }
+    const c = customerMap.get(o.buyerId);
+    c.orders += 1;
+    c.gmv += o.price * o.qty;
+    if (!c.lastOrder || new Date(o.placed) > new Date(c.lastOrder)) c.lastOrder = o.placed;
+  });
+  // Also include registered buyers from state.buyers (may not have orders yet)
+  (state.buyers || []).forEach(b => {
+    if (!customerMap.has(b.id)) {
+      customerMap.set(b.id, { id: b.id, name: b.name || b.email, city: b.city || '—', orders: 0, gmv: 0, lastOrder: null, email: b.email });
+    } else {
+      customerMap.get(b.id).email = b.email;
+    }
+  });
+
+  const customers = Array.from(customerMap.values())
+    .filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.email || '').toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => b.gmv - a.gmv);
+
+  const totalGmv = customers.reduce((s, c) => s + c.gmv, 0);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Customers</h1><div className="page-sub">{customers.length} customers · {formatINR(totalGmv)} lifetime GMV</div></div>
+      </div>
+      <div className="filter-bar" style={{ marginBottom: 16 }}>
+        <input className="search-field" placeholder="Search by name, email…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%' }} />
+      </div>
+      <div className="panel">
+        <table className="table">
+          <thead><tr><th>Customer</th><th>Email</th><th>City</th><th>Orders</th><th>Lifetime spend</th><th>Last order</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+          <tbody>
+            {customers.map(c => (
+              <tr key={c.id}>
+                <td><div className="cell-primary">{c.name || '—'}</div><div className="cell-sub mono">{c.id}</div></td>
+                <td>{c.email || <span style={{color:'var(--muted)'}}>—</span>}</td>
+                <td>{c.city || '—'}</td>
+                <td className="cell-primary">{c.orders}</td>
+                <td className="cell-primary">{formatINR(c.gmv)}</td>
+                <td className="cell-sub">{c.lastOrder || 'No orders'}</td>
+                <td style={{textAlign:'right'}}>
+                  <button className="btn btn-small btn-ghost" onClick={() => addToast(`Email: ${c.email || '—'}`, 'info')}>Contact</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {customers.length === 0 && <div className="empty-state"><div className="empty-state-icon">☺</div><div className="empty-state-text">No customers yet. They'll appear here after the first signup or order.</div></div>}
+    </div>
+  );
+}
+
+function AdminNewsletter() {
+  const { addToast } = useApp();
+  const [list, setList] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('styli-newsletter') || '[]'); }
+    catch { return []; }
+  });
+  const refresh = () => {
+    try { setList(JSON.parse(localStorage.getItem('styli-newsletter') || '[]')); } catch {}
+  };
+  const exportCSV = () => {
+    const csv = ['email,subscribed_at', ...list.map(s => `${s.email},${new Date(s.at).toISOString()}`)].join('\n');
+    navigator.clipboard?.writeText(csv);
+    addToast('CSV copied to clipboard', 'success');
+  };
+  const clearAll = () => {
+    if (window.confirm('Delete all newsletter signups? This cannot be undone.')) {
+      localStorage.removeItem('styli-newsletter');
+      setList([]);
+      addToast('Newsletter cleared', 'info');
+    }
+  };
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Newsletter subscribers</h1><div className="page-sub">{list.length} email{list.length !== 1 ? 's' : ''} · synced from local site signups</div></div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={refresh}>Refresh</button>
+          {list.length > 0 && <button className="btn btn-secondary" onClick={exportCSV}>Copy as CSV</button>}
+          {list.length > 0 && <button className="btn btn-ghost" onClick={clearAll} style={{ color: 'var(--alert)' }}>Clear all</button>}
+        </div>
+      </div>
+      {list.length === 0 ? (
+        <div className="empty-state"><div className="empty-state-icon">✉</div><div className="empty-state-text">No subscribers yet. Newsletter form on landing page will populate this.</div></div>
+      ) : (
+        <div className="panel">
+          <table className="table">
+            <thead><tr><th>#</th><th>Email</th><th>Signed up</th></tr></thead>
+            <tbody>
+              {list.slice().reverse().map((s, i) => (
+                <tr key={s.email + s.at}>
+                  <td className="cell-sub mono">{i + 1}</td>
+                  <td className="cell-primary">{s.email}</td>
+                  <td className="cell-sub">{new Date(s.at).toLocaleString('en-IN')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ marginTop: 16, padding: 14, background: 'var(--cream-light)', borderRadius: 10, fontSize: 12.5, color: 'var(--ink-soft)' }}>
+        <strong>Note:</strong> This shows local-browser signups. Real subscribers from the live D1-backed form land in your D1 database — query <code className="mono">SELECT * FROM newsletter_signups</code> in the D1 console.
+      </div>
+    </div>
+  );
+}
+
+function AdminReturns() {
+  const { state, addToast } = useApp();
+  const returns = state.returns || [];
+  const pending = returns.filter(r => r.status === 'pending');
+  const resolve = (id, action) => {
+    addToast(`Return ${action} (mock — wires to /api/returns in production)`, 'info');
+  };
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Returns</h1><div className="page-sub">{returns.length} total · {pending.length} pending</div></div>
+      </div>
+      {returns.length === 0 ? (
+        <div className="empty-state"><div className="empty-state-icon">↺</div><div className="empty-state-text">No return requests yet.</div></div>
+      ) : (
+        <div className="panel">
+          <table className="table">
+            <thead><tr><th>Return ID</th><th>Order</th><th>Buyer</th><th>Reason</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+            <tbody>
+              {returns.map(r => {
+                const p = state.products.find(x => x.id === r.productId);
+                return (
+                  <tr key={r.id}>
+                    <td className="mono">#{r.id}</td>
+                    <td className="mono">#{r.orderId}</td>
+                    <td>{r.buyer}</td>
+                    <td><div className="cell-primary">{r.reason}</div><div className="cell-sub">{r.note}</div></td>
+                    <td>{r.status === 'pending' ? <span className="badge badge-warn">Pending</span> : r.status === 'approved' ? <span className="badge badge-ok">Approved</span> : <span className="badge badge-alert">Rejected</span>}</td>
+                    <td style={{textAlign:'right'}}>
+                      {r.status === 'pending' && <>
+                        <button className="btn btn-small btn-primary" onClick={() => resolve(r.id, 'approved + refunded')}>Approve & refund</button>
+                        <button className="btn btn-small btn-ghost" style={{ marginLeft: 6 }} onClick={() => resolve(r.id, 'rejected')}>Reject</button>
+                      </>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminReviews() {
+  const { addToast } = useApp();
+  // Mock reviews list for prototype — real version queries reviews table in D1
+  const reviews = [
+    { id: 'rv-001', product: 'Block Print Kurta', buyer: 'Aditi S.', rating: 5, body: 'Beautiful fabric, fits perfectly. Will buy again!', verified: true, createdAt: '2026-04-12T10:30:00Z' },
+    { id: 'rv-002', product: 'Linen Camp Shirt', buyer: 'Rahul M.', rating: 4, body: 'Great for summer. Slightly larger than expected.', verified: true, createdAt: '2026-04-15T14:20:00Z' },
+    { id: 'rv-003', product: 'Oversized Cotton Tee', buyer: 'Priya G.', rating: 2, body: 'Material is rough, not as soft as the photos suggest.', verified: false, createdAt: '2026-04-18T09:00:00Z' },
+  ];
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Reviews</h1><div className="page-sub">{reviews.length} reviews · moderate flagged content</div></div>
+      </div>
+      <div className="panel">
+        <table className="table">
+          <thead><tr><th>Product</th><th>Buyer</th><th>Rating</th><th>Review</th><th>Verified</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+          <tbody>
+            {reviews.map(r => (
+              <tr key={r.id}>
+                <td className="cell-primary">{r.product}</td>
+                <td>{r.buyer}</td>
+                <td><span style={{ color: 'var(--gold-deep)' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span></td>
+                <td style={{ maxWidth: 360 }}>{r.body}</td>
+                <td>{r.verified ? <span className="badge badge-ok">Verified</span> : <span className="badge badge-neutral">Unverified</span>}</td>
+                <td style={{textAlign:'right'}}>
+                  <button className="btn btn-small btn-ghost" onClick={() => addToast('Review hidden (mock)', 'info')}>Hide</button>
+                  <button className="btn btn-small btn-ghost" style={{ marginLeft: 6, color: 'var(--alert)' }} onClick={() => addToast('Review deleted (mock)', 'info')}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: 16, padding: 14, background: 'var(--cream-light)', borderRadius: 10, fontSize: 12.5, color: 'var(--ink-soft)' }}>
+        <strong>Mock data.</strong> The real reviews table is in D1 — once buyers can leave reviews, this view queries <code className="mono">SELECT * FROM reviews</code>.
+      </div>
+    </div>
+  );
+}
+
+function AdminTeam({ onNav }) {
+  const { state, actions, addToast } = useApp();
+  const teamUsers = state.teamUsers || [];
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'team-user' });
+  const submit = () => {
+    if (!form.name || !form.email || !form.password) { addToast('All fields required', 'warn'); return; }
+    actions.addTeamMember(form);
+    addToast(`Added ${form.name}`, 'success');
+    setForm({ name: '', email: '', password: '', role: 'team-user' });
+    setShowAdd(false);
+  };
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Team members</h1><div className="page-sub">{teamUsers.length} people on the team · roles control what they can do</div></div>
+        <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ Add member'}</button>
+      </div>
+      {showAdd && (
+        <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 12 }}>Add a team member</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="field"><label className="field-label">Name</label><input className="field-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="field"><label className="field-label">Email</label><input className="field-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="field"><label className="field-label">Password</label><input className="field-input" type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="something memorable" /></div>
+            <div className="field"><label className="field-label">Role</label>
+              <select className="field-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                <option value="team-super">Superadmin</option>
+                <option value="team-admin">Admin</option>
+                <option value="team-user">User (read-only)</option>
+              </select>
+            </div>
+          </div>
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={submit}>Add</button>
+        </div>
+      )}
+      <div className="panel">
+        <table className="table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+          <tbody>
+            {teamUsers.map(t => {
+              const cls = t.role === 'team-super' ? 'super' : t.role === 'team-admin' ? 'admin' : 'user';
+              return (
+                <tr key={t.id}>
+                  <td className="cell-primary">{t.name}</td>
+                  <td>{t.email}</td>
+                  <td>
+                    <select value={t.role} onChange={e => { actions.updateTeamMemberRole(t.id, e.target.value); addToast(`${t.name} → ${TEAM_ROLE_LABEL[e.target.value]}`, 'success'); }} style={{ padding: '4px 8px', fontSize: 12 }}>
+                      <option value="team-super">Superadmin</option>
+                      <option value="team-admin">Admin</option>
+                      <option value="team-user">User</option>
+                    </select>
+                    <span className={`role-pill ${cls}`} style={{ marginLeft: 8 }}>{TEAM_ROLE_LABEL[t.role]}</span>
+                  </td>
+                  <td className="cell-sub">{t.joinedAt}</td>
+                  <td style={{textAlign:'right'}}>
+                    <button className="btn btn-small btn-ghost" onClick={() => { if (window.confirm(`Remove ${t.name}?`)) { actions.removeTeamMember(t.id); addToast('Removed', 'info'); } }} style={{ color: 'var(--alert)' }}>Remove</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AdminRoles({ onNav }) {
+  const { state, actions, addToast } = useApp();
+  const perms = state.permissions || DEFAULT_TEAM_PERMISSIONS;
+  const grouped = {};
+  Object.entries(PERMISSION_LABELS).forEach(([action, info]) => {
+    if (!grouped[info.group]) grouped[info.group] = [];
+    grouped[info.group].push({ action, label: info.label });
+  });
+  const groupOrder = ['View', 'Operations', 'Destructive', 'Governance'];
+  const ROLES = ['team-super', 'team-admin', 'team-user'];
+  const ROLE_CLASS = { 'team-super': 'super', 'team-admin': 'admin', 'team-user': 'user' };
+  const handleToggle = (action, r) => {
+    if (action === 'edit.permissions' && r === 'team-super') {
+      addToast('Cannot remove permissions editor from Superadmin (would lock everyone out)', 'warn');
+      return;
+    }
+    actions.togglePermission(action, r);
+  };
+  const reset = () => {
+    if (window.confirm('Reset all permissions to defaults?')) {
+      actions.resetPermissions();
+      addToast('Permissions reset', 'success');
+    }
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Roles &amp; permissions</h1><div className="page-sub">Toggle what each role can do — changes apply instantly to every signed-in team member</div></div>
+        <button className="btn btn-secondary" onClick={reset}>Reset to defaults</button>
+      </div>
+      <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="team-table" style={{ borderRadius: 0, border: 'none' }}>
+          <thead>
+            <tr>
+              <th style={{ width: '50%' }}>Action</th>
+              {ROLES.map(r => <th key={r} style={{ textAlign: 'center', width: '14%' }}><span className={`role-pill ${ROLE_CLASS[r]}`}>{TEAM_ROLE_LABEL[r]}</span></th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {groupOrder.map(group => (
+              <React.Fragment key={group}>
+                <tr><td colSpan={4} style={{ background: 'var(--cream-light)', fontSize: 11, color: 'var(--muted)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, padding: '10px 16px' }}>{group}</td></tr>
+                {(grouped[group] || []).map(({ action, label }) => (
+                  <tr key={action}>
+                    <td><strong style={{ fontSize: 13.5 }}>{label}</strong><div className="cell-sub mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{action}</div></td>
+                    {ROLES.map(r => {
+                      const allowed = (perms[action] || []).includes(r);
+                      const isLocked = action === 'edit.permissions' && r === 'team-super';
+                      return (
+                        <td key={r} style={{ textAlign: 'center' }}>
+                          <input type="checkbox" checked={allowed} disabled={isLocked} onChange={() => handleToggle(action, r)}
+                            style={{ width: 18, height: 18, cursor: isLocked ? 'not-allowed' : 'pointer', accentColor: r === 'team-super' ? 'var(--rose-deep)' : r === 'team-admin' ? 'var(--gold-deep)' : 'var(--sage)' }}
+                            title={isLocked ? 'Cannot remove — would lock everyone out' : ''} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AdminSettings() {
+  const { addToast } = useApp();
+  const [siteName, setSiteName] = useState('Styli');
+  const [supportEmail, setSupportEmail] = useState('hello@styli.co.in');
+  const [autoApprove, setAutoApprove] = useState(false);
+  const [shippingThreshold, setShippingThreshold] = useState(999);
+  const [returnDays, setReturnDays] = useState(7);
+  return (
+    <div>
+      <div className="page-header"><div><h1 className="page-title">Settings</h1><div className="page-sub">Platform-wide configuration</div></div></div>
+      <div className="panel" style={{ padding: 24, maxWidth: 720 }}>
+        <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 14 }}>General</h3>
+        <div className="field" style={{ marginBottom: 14 }}><label className="field-label">Site name</label><input className="field-input" value={siteName} onChange={e => setSiteName(e.target.value)} /></div>
+        <div className="field" style={{ marginBottom: 14 }}><label className="field-label">Support email</label><input className="field-input" value={supportEmail} onChange={e => setSupportEmail(e.target.value)} /></div>
+        <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginTop: 24, marginBottom: 14 }}>Marketplace</h3>
+        <div className="field" style={{ marginBottom: 14 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5 }}>
+            <input type="checkbox" checked={autoApprove} onChange={e => setAutoApprove(e.target.checked)} />
+            Auto-approve new vendor applications (skip review queue)
+          </label>
+        </div>
+        <div className="field" style={{ marginBottom: 14 }}><label className="field-label">Free shipping threshold (₹)</label><input className="field-input" type="number" value={shippingThreshold} onChange={e => setShippingThreshold(parseInt(e.target.value, 10))} /></div>
+        <div className="field" style={{ marginBottom: 14 }}><label className="field-label">Return window (days)</label><input className="field-input" type="number" value={returnDays} onChange={e => setReturnDays(parseInt(e.target.value, 10))} /></div>
+        <button className="btn btn-primary" style={{ marginTop: 8 }} onClick={() => addToast('Settings saved', 'success')}>Save settings</button>
+      </div>
+    </div>
+  );
+}
+
+function AdminAuditLog() {
+  // Mock audit entries — real version queries team_audit_log table
+  const entries = [
+    { actor: 'Admin',           action: 'vendor.approve',     target: 'Kavya Boutique',   when: '2 days ago' },
+    { actor: 'Admin',           action: 'product.unlist',     target: 'Old Sale Item',    when: '4 days ago' },
+    { actor: 'Aditya Bhardwaj', action: 'permissions.update', target: 'edit.orders.refund → Admin', when: '1 week ago' },
+    { actor: 'Admin',           action: 'team.add',           target: 'Operations Lead',  when: '2 weeks ago' },
+  ];
+  return (
+    <div>
+      <div className="page-header"><div><h1 className="page-title">Audit log</h1><div className="page-sub">Every admin action is recorded for compliance</div></div></div>
+      <div className="panel">
+        <table className="table">
+          <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th></tr></thead>
+          <tbody>
+            {entries.map((e, i) => (
+              <tr key={i}>
+                <td className="cell-sub">{e.when}</td>
+                <td className="cell-primary">{e.actor}</td>
+                <td className="mono" style={{ fontSize: 12 }}>{e.action}</td>
+                <td>{e.target}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: 16, padding: 14, background: 'var(--cream-light)', borderRadius: 10, fontSize: 12.5, color: 'var(--ink-soft)' }}>
+        <strong>Mock data.</strong> Real audit entries live in the <code className="mono">team_audit_log</code> table in D1 — populated by every admin action via the API.
       </div>
     </div>
   );
