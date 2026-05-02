@@ -2805,14 +2805,42 @@ function VendorLogin({ onNav }) {
 function VendorApply({ onNav }) {
   const { actions, addToast } = useApp();
   const [form, setForm] = useState({ name: '', email: '', password: '', type: 'small', gst: '', city: '', phone: '' });
+  const [submitting, setSubmitting] = useState(false);
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const valid = form.name && form.email && form.password && form.gst && form.city && form.phone;
 
-  const submit = () => {
-    if (!valid) return;
-    actions.applyVendor(form);
-    addToast('Application submitted. Admin will review within 48 hours.', 'success');
-    onNav('vendor-applied');
+  const submit = async () => {
+    if (!valid || submitting) return;
+    setSubmitting(true);
+
+    // Try the real D1-backed API first (works on Cloudflare Pages with binding)
+    let savedToDB = false;
+    try {
+      const res = await fetch('/api/vendors/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        savedToDB = true;
+        addToast('Application submitted. Admin will review within 48 hours.', 'success');
+        onNav('vendor-applied');
+        setSubmitting(false);
+        return;
+      } else if (res.status === 409) {
+        addToast('An application with this email already exists.', 'warn');
+        setSubmitting(false);
+        return;
+      }
+    } catch (err) { /* fall through to localStorage */ }
+
+    // Fallback to localStorage (local preview, or D1 binding/table not set up yet)
+    if (!savedToDB) {
+      actions.applyVendor(form);
+      addToast('Application submitted. Admin will review within 48 hours.', 'success');
+      onNav('vendor-applied');
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -2859,7 +2887,7 @@ function VendorApply({ onNav }) {
             <input className="auth-input" value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="+91" />
           </div>
         </div>
-        <button className="btn btn-primary auth-btn" disabled={!valid} onClick={submit}>Submit application →</button>
+        <button className="btn btn-primary auth-btn" disabled={!valid || submitting} onClick={submit}>{submitting ? 'Submitting…' : 'Submit application →'}</button>
       </div>
     </div>
   );
