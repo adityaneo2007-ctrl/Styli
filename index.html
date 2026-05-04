@@ -1536,6 +1536,20 @@ const defaultState = () => ({
     { id: 'tm-admin', email: 'team@styli.in',  password: 'team123',  name: 'Operations Lead',   role: 'team-admin', joinedAt: '12 Feb 2026' },
     { id: 'tm-user',  email: 'staff@styli.in', password: 'staff123', name: 'Junior Staff',      role: 'team-user',  joinedAt: '4 Apr 2026' },
   ],
+  discountCodes: [
+    { id: 'dc-001', code: 'STYLI20',  type: 'percent', value: 20,  minCart: 0,    maxUses: 1000, usedCount: 23, expiresAt: '2026-12-31', active: true,  createdAt: '2026-04-01', notes: 'Welcome 20% — first-order' },
+    { id: 'dc-002', code: 'STYLI500', type: 'flat',    value: 500, minCart: 1499, maxUses: 500,  usedCount: 8,  expiresAt: '2026-06-30', active: true,  createdAt: '2026-04-15', notes: 'Flat ₹500 off' },
+    { id: 'dc-003', code: 'WELCOME',  type: 'percent', value: 10,  minCart: 0,    maxUses: 0,    usedCount: 0,  expiresAt: '2026-05-01', active: false, createdAt: '2026-03-01', notes: 'Old code, expired' },
+  ],
+  featuredProductIds: ['p-001', 'p-005', 'p-008'],
+  categories: [
+    { id: 'cat-1', name: 'Kurtas',   displayName: 'Women · Kurtas',  sortOrder: 1, hidden: false },
+    { id: 'cat-2', name: 'Dresses',  displayName: 'Women · Dresses', sortOrder: 2, hidden: false },
+    { id: 'cat-3', name: 'Tops',     displayName: 'Women · Tops',    sortOrder: 3, hidden: false },
+    { id: 'cat-4', name: 'Trousers', displayName: 'Bottoms',         sortOrder: 4, hidden: false },
+    { id: 'cat-5', name: 'Shirts',   displayName: 'Men · Shirts',    sortOrder: 5, hidden: false },
+  ],
+  searchHistory: [],
   permissions: { ...{
     'view.dashboard':       ['team-super', 'team-admin', 'team-user'],
     'view.vendors':         ['team-super', 'team-admin', 'team-user'],
@@ -1688,6 +1702,41 @@ function AppProvider({ children }) {
       return { ...s, permissions: perms };
     }),
     resetPermissions: () => setState(s => ({ ...s, permissions: deepClonePermissions(DEFAULT_TEAM_PERMISSIONS) })),
+
+    // Discount codes (admin only)
+    addDiscountCode: (data) => setState(s => {
+      const id = 'dc-' + Math.random().toString(36).slice(2, 7);
+      const created = new Date().toISOString().slice(0, 10);
+      return { ...s, discountCodes: [{ id, usedCount: 0, active: true, createdAt: created, ...data }, ...(s.discountCodes || [])] };
+    }),
+    updateDiscountCode: (id, patch) => setState(s => ({ ...s, discountCodes: (s.discountCodes || []).map(d => d.id === id ? { ...d, ...patch } : d) })),
+    removeDiscountCode: (id) => setState(s => ({ ...s, discountCodes: (s.discountCodes || []).filter(d => d.id !== id) })),
+    toggleDiscountActive: (id) => setState(s => ({ ...s, discountCodes: (s.discountCodes || []).map(d => d.id === id ? { ...d, active: !d.active } : d) })),
+
+    // Featured products
+    toggleFeaturedProduct: (productId) => setState(s => {
+      const list = s.featuredProductIds || [];
+      const exists = list.includes(productId);
+      return { ...s, featuredProductIds: exists ? list.filter(x => x !== productId) : [...list, productId] };
+    }),
+
+    // Categories
+    addCategory: (data) => setState(s => {
+      const id = 'cat-' + Math.random().toString(36).slice(2, 6);
+      const sortOrder = (s.categories || []).length + 1;
+      return { ...s, categories: [...(s.categories || []), { id, sortOrder, hidden: false, ...data }] };
+    }),
+    updateCategory: (id, patch) => setState(s => ({ ...s, categories: (s.categories || []).map(c => c.id === id ? { ...c, ...patch } : c) })),
+    removeCategory: (id) => setState(s => ({ ...s, categories: (s.categories || []).filter(c => c.id !== id) })),
+
+    // Search tracking
+    recordSearch: (query, resultCount) => setState(s => {
+      const list = s.searchHistory || [];
+      // Limit to last 200 searches to keep state size manageable
+      const next = [{ query: query.trim().toLowerCase().slice(0, 64), at: Date.now(), resultCount: resultCount || 0 }, ...list].slice(0, 200);
+      return { ...s, searchHistory: next };
+    }),
+    clearSearchHistory: () => setState(s => ({ ...s, searchHistory: [] })),
 
     // Vendor signup
     applyVendor: (data) => setState(s => {
@@ -1857,6 +1906,22 @@ function TopBar({ onNav, currentUser, onLogout }) {
   );
 }
 
+// ============ CSV EXPORT helper — used by admin export buttons ============
+function downloadCSV(filename, headers, rows) {
+  const escape = (cell) => {
+    if (cell == null) return '';
+    const s = String(cell);
+    return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a);
+  a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ============ PRODUCT IMAGE (real photo with auto-fallback) ============
 // Tries product.imageUrl first → falls back to Picsum (guaranteed to load) → falls back to gradient
 function ProductImage({ product, className = '' }) {
@@ -1945,8 +2010,18 @@ function Landing({ onNav }) {
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
+      const q = searchQuery.trim();
+      // Track for admin search analytics
+      const matchCount = state.products.filter(p =>
+        p.listed && p.approved && (
+          p.name.toLowerCase().includes(q.toLowerCase()) ||
+          p.category.toLowerCase().includes(q.toLowerCase()) ||
+          (p.tags || []).some(t => t.toLowerCase().includes(q.toLowerCase()))
+        )
+      ).length;
+      actions.recordSearch(q, matchCount);
       // Persist search through localStorage for shop page to pick up
-      try { localStorage.setItem('styli-search', searchQuery.trim()); } catch {}
+      try { localStorage.setItem('styli-search', q); } catch {}
       onNav('buyer-shop');
     }
   };
@@ -3104,6 +3179,24 @@ function BuyerShop({ onNav }) {
   });
   // Clear the saved search after we pick it up so it doesn't persist forever
   useEffect(() => { try { localStorage.removeItem('styli-search'); } catch {} }, []);
+
+  // Record searches (debounced) for the admin search-analytics widget
+  useEffect(() => {
+    const q = search.trim();
+    if (!q || q.length < 2) return;
+    const t = setTimeout(() => {
+      const liveCount = state.products.filter(p => p.listed && p.approved).length;
+      const matchCount = state.products.filter(p =>
+        p.listed && p.approved && (
+          p.name.toLowerCase().includes(q.toLowerCase()) ||
+          p.category.toLowerCase().includes(q.toLowerCase()) ||
+          (p.tags || []).some(t => t.toLowerCase().includes(q.toLowerCase()))
+        )
+      ).length;
+      actions.recordSearch(q, matchCount);
+    }, 800); // wait for typing to settle
+    return () => clearTimeout(t);
+  }, [search]);
 
   const user = state.currentUser;
   if (!user) { onNav('buyer-login'); return null; }
@@ -4652,11 +4745,17 @@ function AdminDashboard({ onNav }) {
 
   const NAV_ITEMS = [
     { section: 'Main', items: [{ id: 'overview', label: 'Overview', icon: '◐' }] },
-    { section: 'Marketplace', items: [
+    { section: 'Catalog', items: [
       { id: 'applications', label: 'Applications', icon: '◎' },
       { id: 'vendors',      label: 'All vendors',  icon: '◈' },
       { id: 'products',     label: 'All products', icon: '▦' },
+      { id: 'categories',   label: 'Categories',   icon: '⊞' },
+      { id: 'featured',     label: 'Featured',     icon: '☆' },
+    ]},
+    { section: 'Sales', items: [
       { id: 'orders',       label: 'All orders',   icon: '◊' },
+      { id: 'promotions',   label: 'Promotions',   icon: '%' },
+      { id: 'analytics',    label: 'Analytics',    icon: '⌗' },
     ]},
     { section: 'Users', items: [
       { id: 'customers',    label: 'Customers',     icon: '☺' },
@@ -4714,6 +4813,10 @@ function AdminDashboard({ onNav }) {
         {active === 'roles' && <AdminRoles onNav={onNav} />}
         {active === 'settings' && <AdminSettings />}
         {active === 'audit' && <AdminAuditLog />}
+        {active === 'promotions' && <AdminPromotions />}
+        {active === 'featured' && <AdminFeatured />}
+        {active === 'categories' && <AdminCategories />}
+        {active === 'analytics' && <AdminAnalytics />}
       </main>
     </div>
   );
@@ -4726,15 +4829,89 @@ function AdminOverview() {
   const gmv = state.orders.reduce((s, o) => s + o.price * o.qty, 0);
   const buyers = state.buyers.length;
 
+  // Inventory alerts: products with total stock < 5
+  const lowStock = state.products
+    .filter(p => p.listed && p.approved)
+    .map(p => ({ ...p, total: totalStock(p.stock) }))
+    .filter(p => p.total < 5)
+    .sort((a, b) => a.total - b.total)
+    .slice(0, 8);
+
+  // Search analytics: top searches in last 200 + 0-result searches
+  const sh = state.searchHistory || [];
+  const queryTally = {};
+  const zeroResults = {};
+  sh.forEach(s => {
+    const q = (s.query || '').trim();
+    if (!q) return;
+    queryTally[q] = (queryTally[q] || 0) + 1;
+    if (s.resultCount === 0) zeroResults[q] = (zeroResults[q] || 0) + 1;
+  });
+  const topSearches = Object.entries(queryTally).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const topMissing = Object.entries(zeroResults).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
   return (
     <div>
       <div className="page-header"><div><h1 className="page-title">Platform overview</h1><div className="page-sub">Real-time state of the Styli marketplace</div></div></div>
       {pending > 0 && <div className="alert-row info"><span className="alert-icon">◆</span><div className="alert-content"><div className="alert-title">{pending} vendor application{pending !== 1 ? 's' : ''} awaiting review</div><div className="alert-sub">Respond within 48 hours to maintain good relations.</div></div></div>}
+      {lowStock.length > 0 && <div className="alert-row info" style={{ background: 'var(--alert-light)', borderColor: 'var(--alert)', marginTop: 8 }}><span className="alert-icon" style={{ color: 'var(--alert)' }}>!</span><div className="alert-content"><div className="alert-title" style={{ color: 'var(--alert)' }}>{lowStock.length} product{lowStock.length !== 1 ? 's' : ''} running low on stock</div><div className="alert-sub">Lowest: <strong>{lowStock[0].name}</strong> ({lowStock[0].total} units left). See "Inventory alerts" below.</div></div></div>}
       <div className="kpi-row" style={{ marginTop: 16 }}>
         <div className="kpi-card accent"><div className="kpi-label">Platform GMV</div><div className="kpi-value">{formatINR(gmv)}</div><div className="kpi-delta up">All time</div></div>
         <div className="kpi-card"><div className="kpi-label">Active vendors</div><div className="kpi-value">{approved}</div><div className="kpi-delta">{pending} pending</div></div>
         <div className="kpi-card"><div className="kpi-label">Products listed</div><div className="kpi-value">{state.products.filter(p => p.listed && p.approved).length}</div></div>
         <div className="kpi-card"><div className="kpi-label">Registered buyers</div><div className="kpi-value">{buyers}</div></div>
+      </div>
+
+      {/* Inventory alerts + Search analytics widgets */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 18 }}>
+        <div className="panel" style={{ padding: 20 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 500, marginBottom: 12 }}>Inventory alerts</h3>
+          {lowStock.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>All listed products have ≥5 units in stock. ✓</div>
+          ) : (
+            lowStock.map(p => {
+              const v = state.vendors.find(x => x.id === p.vendorId);
+              const colorIntensity = p.total === 0 ? 'var(--alert)' : p.total < 3 ? 'var(--alert)' : 'var(--gold-deep)';
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--line-soft)' }}>
+                  <div className={`product-thumb ${p.grad}`} style={{ width: 36, height: 36 }}>{p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>{v?.name || '—'}</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: colorIntensity, whiteSpace: 'nowrap' }}>{p.total} {p.total === 1 ? 'unit' : 'units'}</div>
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="panel" style={{ padding: 20 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 500, marginBottom: 12 }}>Top searches</h3>
+          {topSearches.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>No search history yet. Will populate as buyers use the search bar.</div>
+          ) : (
+            <>
+              {topSearches.map(([q, count]) => (
+                <div key={q} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13 }}>
+                  <span><span style={{ color: 'var(--muted)', marginRight: 6 }}>🔍</span>{q}</span>
+                  <span style={{ color: 'var(--muted)' }}>{count}×</span>
+                </div>
+              ))}
+              {topMissing.length > 0 && (
+                <div style={{ marginTop: 12, padding: '12px 0 0', borderTop: '1px solid var(--line-soft)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--alert)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Searches with 0 results</div>
+                  {topMissing.map(([q, count]) => (
+                    <div key={q} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12, color: 'var(--ink-soft)' }}>
+                      <span>{q}</span>
+                      <span style={{ color: 'var(--muted)' }}>{count}×</span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8, fontStyle: 'italic' }}>↑ Source these next.</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="panel" style={{ marginTop: 18, marginBottom: 18 }}>
@@ -4855,7 +5032,17 @@ function AdminProducts() {
   };
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">All products</h1><div className="page-sub">{state.products.length} products across all vendors · {state.products.filter(p => p.listed).length} live</div></div></div>
+      <div className="page-header">
+        <div><h1 className="page-title">All products</h1><div className="page-sub">{state.products.length} products across all vendors · {state.products.filter(p => p.listed).length} live</div></div>
+        <button className="btn btn-secondary" onClick={() => {
+          const rows = filtered.map(p => {
+            const v = state.vendors.find(x => x.id === p.vendorId);
+            return [p.id, p.name, v?.name || '', p.category, p.price, totalStock(p.stock), p.listed ? 'Live' : 'Hidden', p.rating || 0, p.reviewCount || 0];
+          });
+          downloadCSV('styli-products.csv', ['Product ID', 'Name', 'Vendor', 'Category', 'Price (paise)', 'Stock', 'Status', 'Rating', 'Reviews'], rows);
+          addToast(`Exported ${rows.length} products`, 'success');
+        }}>Export CSV</button>
+      </div>
       <div className="filter-bar" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
         <input className="search-field" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
         <select className="search-field" value={filter} onChange={e => setFilter(e.target.value)}>
@@ -4897,7 +5084,18 @@ function AdminOrders() {
   const totalGmv = state.orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.price * o.qty, 0);
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">All orders</h1><div className="page-sub">{state.orders.length} orders · {formatINR(totalGmv)} GMV</div></div></div>
+      <div className="page-header">
+        <div><h1 className="page-title">All orders</h1><div className="page-sub">{state.orders.length} orders · {formatINR(totalGmv)} GMV</div></div>
+        <button className="btn btn-secondary" onClick={() => {
+          const rows = filtered.map(o => {
+            const p = state.products.find(x => x.id === o.productId);
+            const v = state.vendors.find(x => x.id === o.vendorId);
+            return [o.id, p?.name || o.productId, o.size, o.qty, v?.name || '', o.buyer, o.city, o.pin, o.price * o.qty, o.status, o.placed];
+          });
+          downloadCSV('styli-orders.csv', ['Order ID', 'Product', 'Size', 'Qty', 'Vendor', 'Buyer', 'City', 'PIN', 'Amount (paise)', 'Status', 'Placed'], rows);
+          addToast(`Exported ${rows.length} orders`, 'success');
+        }}>Export CSV</button>
+      </div>
       <div className="filter-bar" style={{ marginBottom: 16 }}>
         <select className="search-field" value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="all">All statuses</option>
@@ -4975,6 +5173,11 @@ function AdminCustomers() {
     <div>
       <div className="page-header">
         <div><h1 className="page-title">Customers</h1><div className="page-sub">{customers.length} customers · {formatINR(totalGmv)} lifetime GMV</div></div>
+        <button className="btn btn-secondary" onClick={() => {
+          const rows = customers.map(c => [c.id, c.name || '', c.email || '', c.city || '', c.orders, c.gmv, c.lastOrder || '']);
+          downloadCSV('styli-customers.csv', ['Customer ID', 'Name', 'Email', 'City', 'Orders', 'Lifetime GMV (paise)', 'Last order'], rows);
+          addToast(`Exported ${rows.length} customers`, 'success');
+        }}>Export CSV</button>
       </div>
       <div className="filter-bar" style={{ marginBottom: 16 }}>
         <input className="search-field" placeholder="Search by name, email…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%' }} />
@@ -5014,9 +5217,9 @@ function AdminNewsletter() {
     try { setList(JSON.parse(localStorage.getItem('styli-newsletter') || '[]')); } catch {}
   };
   const exportCSV = () => {
-    const csv = ['email,subscribed_at', ...list.map(s => `${s.email},${new Date(s.at).toISOString()}`)].join('\n');
-    navigator.clipboard?.writeText(csv);
-    addToast('CSV copied to clipboard', 'success');
+    const rows = list.map(s => [s.email, new Date(s.at).toISOString()]);
+    downloadCSV('styli-newsletter.csv', ['Email', 'Subscribed at'], rows);
+    addToast(`Exported ${list.length} subscribers`, 'success');
   };
   const clearAll = () => {
     if (window.confirm('Delete all newsletter signups? This cannot be undone.')) {
@@ -5031,7 +5234,7 @@ function AdminNewsletter() {
         <div><h1 className="page-title">Newsletter subscribers</h1><div className="page-sub">{list.length} email{list.length !== 1 ? 's' : ''} · synced from local site signups</div></div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={refresh}>Refresh</button>
-          {list.length > 0 && <button className="btn btn-secondary" onClick={exportCSV}>Copy as CSV</button>}
+          {list.length > 0 && <button className="btn btn-secondary" onClick={exportCSV}>Export CSV</button>}
           {list.length > 0 && <button className="btn btn-ghost" onClick={clearAll} style={{ color: 'var(--alert)' }}>Clear all</button>}
         </div>
       </div>
@@ -5338,6 +5541,349 @@ function AdminAuditLog() {
       </div>
       <div style={{ marginTop: 16, padding: 14, background: 'var(--cream-light)', borderRadius: 10, fontSize: 12.5, color: 'var(--ink-soft)' }}>
         <strong>Mock data.</strong> Real audit entries live in the <code className="mono">team_audit_log</code> table in D1 — populated by every admin action via the API.
+      </div>
+    </div>
+  );
+}
+
+// ============ ADMIN PROMOTIONS — discount code management ============
+function AdminPromotions() {
+  const { state, actions, addToast } = useApp();
+  const codes = state.discountCodes || [];
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ code: '', type: 'percent', value: 10, minCart: 0, maxUses: 100, expiresAt: '', notes: '' });
+
+  const submit = () => {
+    const code = form.code.trim().toUpperCase();
+    if (!code) { addToast('Code required', 'warn'); return; }
+    if (codes.some(c => c.code === code)) { addToast('Code already exists', 'warn'); return; }
+    actions.addDiscountCode({ ...form, code });
+    addToast(`Created code ${code}`, 'success');
+    setForm({ code: '', type: 'percent', value: 10, minCart: 0, maxUses: 100, expiresAt: '', notes: '' });
+    setShowAdd(false);
+  };
+
+  const remove = (id, code) => {
+    if (window.confirm(`Delete code ${code}?`)) {
+      actions.removeDiscountCode(id);
+      addToast('Code deleted', 'info');
+    }
+  };
+
+  const totalRedeemed = codes.reduce((s, c) => s + (c.usedCount || 0), 0);
+  const activeCount = codes.filter(c => c.active).length;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Promotions</h1><div className="page-sub">{codes.length} codes · {activeCount} active · {totalRedeemed} redemptions</div></div>
+        <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ New code'}</button>
+      </div>
+
+      {showAdd && (
+        <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 14 }}>Create discount code</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div className="field"><label className="field-label">Code (e.g. STYLI20)</label><input className="field-input" value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="SUMMER50" /></div>
+            <div className="field"><label className="field-label">Type</label>
+              <select className="field-input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                <option value="percent">Percent off (%)</option>
+                <option value="flat">Flat amount off (₹)</option>
+              </select>
+            </div>
+            <div className="field"><label className="field-label">Value</label><input className="field-input" type="number" value={form.value} onChange={e => setForm({ ...form, value: parseInt(e.target.value, 10) || 0 })} /></div>
+            <div className="field"><label className="field-label">Min cart (₹)</label><input className="field-input" type="number" value={form.minCart} onChange={e => setForm({ ...form, minCart: parseInt(e.target.value, 10) || 0 })} /></div>
+            <div className="field"><label className="field-label">Max uses (0 = unlimited)</label><input className="field-input" type="number" value={form.maxUses} onChange={e => setForm({ ...form, maxUses: parseInt(e.target.value, 10) || 0 })} /></div>
+            <div className="field"><label className="field-label">Expires</label><input className="field-input" type="date" value={form.expiresAt} onChange={e => setForm({ ...form, expiresAt: e.target.value })} /></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label className="field-label">Notes (internal)</label><input className="field-input" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Welcome offer for first-time buyers" /></div>
+          </div>
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={submit}>Create code</button>
+        </div>
+      )}
+
+      {codes.length === 0 ? (
+        <div className="empty-state"><div className="empty-state-icon">%</div><div className="empty-state-text">No discount codes yet. Click "+ New code" to create one.</div></div>
+      ) : (
+        <div className="panel">
+          <table className="table">
+            <thead><tr><th>Code</th><th>Discount</th><th>Min cart</th><th>Used / max</th><th>Expires</th><th>Notes</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+            <tbody>
+              {codes.map(c => {
+                const expired = c.expiresAt && new Date(c.expiresAt) < new Date();
+                const exhausted = c.maxUses > 0 && c.usedCount >= c.maxUses;
+                const live = c.active && !expired && !exhausted;
+                return (
+                  <tr key={c.id}>
+                    <td><code className="mono" style={{ fontWeight: 600, color: 'var(--rose-deep)' }}>{c.code}</code></td>
+                    <td className="cell-primary">{c.type === 'percent' ? `${c.value}%` : formatINR(c.value * 100)}</td>
+                    <td>{c.minCart > 0 ? formatINR(c.minCart * 100) : '—'}</td>
+                    <td>{c.usedCount} / {c.maxUses || '∞'}</td>
+                    <td className="cell-sub">{c.expiresAt || '—'}</td>
+                    <td className="cell-sub" style={{ maxWidth: 240, fontSize: 12 }}>{c.notes}</td>
+                    <td>{
+                      live ? <span className="badge badge-ok">Live</span> :
+                      !c.active ? <span className="badge badge-neutral">Disabled</span> :
+                      expired ? <span className="badge badge-alert">Expired</span> :
+                      <span className="badge badge-warn">Used up</span>
+                    }</td>
+                    <td style={{textAlign:'right'}}>
+                      <button className="btn btn-small btn-ghost" onClick={() => actions.toggleDiscountActive(c.id)}>{c.active ? 'Disable' : 'Enable'}</button>
+                      <button className="btn btn-small btn-ghost" style={{ marginLeft: 6, color: 'var(--alert)' }} onClick={() => remove(c.id, c.code)}>Delete</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ ADMIN FEATURED — homepage product curation ============
+function AdminFeatured() {
+  const { state, actions, addToast } = useApp();
+  const featured = state.featuredProductIds || [];
+  const liveProducts = state.products.filter(p => p.listed && p.approved);
+  const [search, setSearch] = useState('');
+  const filtered = liveProducts.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Featured products</h1><div className="page-sub">{featured.length} products pinned to homepage trending grid · drag-style ordering coming soon</div></div>
+      </div>
+      <div className="filter-bar" style={{ marginBottom: 16 }}>
+        <input className="search-field" placeholder="Search products to feature..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%' }} />
+      </div>
+      <div className="panel">
+        <table className="table">
+          <thead><tr><th></th><th>Product</th><th>Vendor</th><th>Category</th><th>Price</th><th>Rating</th><th style={{textAlign:'right'}}>Featured</th></tr></thead>
+          <tbody>
+            {filtered.map(p => {
+              const v = state.vendors.find(x => x.id === p.vendorId);
+              const isFeatured = featured.includes(p.id);
+              return (
+                <tr key={p.id} style={{ background: isFeatured ? 'var(--rose-faint)' : 'transparent' }}>
+                  <td><div className={`product-thumb ${p.grad}`} style={{ width: 40, height: 40 }}>{p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}</div></td>
+                  <td><div className="cell-primary">{p.name}</div><div className="cell-sub mono">{p.id}</div></td>
+                  <td>{v?.name || '—'}</td>
+                  <td>{p.category}</td>
+                  <td className="cell-primary">{formatINR(p.price)}</td>
+                  <td>{(p.rating || 0).toFixed(1)} ★ ({p.reviewCount || 0})</td>
+                  <td style={{textAlign:'right'}}>
+                    <button className={`btn btn-small ${isFeatured ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { actions.toggleFeaturedProduct(p.id); addToast(isFeatured ? 'Unfeatured' : 'Featured on homepage', 'success'); }}>{isFeatured ? '★ Featured' : '☆ Feature'}</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============ ADMIN CATEGORIES — taxonomy management ============
+function AdminCategories() {
+  const { state, actions, addToast } = useApp();
+  const cats = (state.categories || []).slice().sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99));
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', displayName: '' });
+
+  const submit = () => {
+    const name = form.name.trim();
+    if (!name) { addToast('Category name required', 'warn'); return; }
+    if (cats.some(c => c.name.toLowerCase() === name.toLowerCase())) { addToast('Category already exists', 'warn'); return; }
+    actions.addCategory({ name, displayName: form.displayName || name });
+    addToast(`Added ${name}`, 'success');
+    setForm({ name: '', displayName: '' });
+    setShowAdd(false);
+  };
+
+  const remove = (id, name) => {
+    const productCount = state.products.filter(p => p.category === name).length;
+    if (productCount > 0) {
+      addToast(`Cannot delete — ${productCount} products use this category`, 'warn');
+      return;
+    }
+    if (window.confirm(`Delete category "${name}"?`)) {
+      actions.removeCategory(id);
+      addToast('Category deleted', 'info');
+    }
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><h1 className="page-title">Categories</h1><div className="page-sub">{cats.length} categories · vendors pick from this list when listing products</div></div>
+        <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ Add category'}</button>
+      </div>
+
+      {showAdd && (
+        <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="field"><label className="field-label">Name (technical)</label><input className="field-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Sarees" /></div>
+            <div className="field"><label className="field-label">Display name (optional)</label><input className="field-input" value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} placeholder="Women · Sarees" /></div>
+          </div>
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={submit}>Add</button>
+        </div>
+      )}
+
+      <div className="panel">
+        <table className="table">
+          <thead><tr><th>Order</th><th>Name</th><th>Display name</th><th>Products in category</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+          <tbody>
+            {cats.map(c => {
+              const productCount = state.products.filter(p => p.category === c.name).length;
+              return (
+                <tr key={c.id}>
+                  <td className="cell-sub">#{c.sortOrder || '—'}</td>
+                  <td className="cell-primary">{c.name}</td>
+                  <td>{c.displayName || c.name}</td>
+                  <td>{productCount}</td>
+                  <td>{c.hidden ? <span className="badge badge-neutral">Hidden</span> : <span className="badge badge-ok">Live</span>}</td>
+                  <td style={{textAlign:'right'}}>
+                    <button className="btn btn-small btn-ghost" onClick={() => actions.updateCategory(c.id, { hidden: !c.hidden })}>{c.hidden ? 'Show' : 'Hide'}</button>
+                    <button className="btn btn-small btn-ghost" style={{ marginLeft: 6, color: 'var(--alert)' }} onClick={() => remove(c.id, c.name)}>Delete</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============ ADMIN ANALYTICS — sales charts and rankings ============
+function AdminAnalytics() {
+  const { state } = useApp();
+  const orders = (state.orders || []).filter(o => o.status !== 'cancelled');
+
+  // Revenue per day for the last 14 days
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today); d.setDate(today.getDate() - i);
+    days.push({ date: d, key: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }), revenue: 0, orderCount: 0 });
+  }
+  // Bucket orders into days (for prototype, treat all orders as if they happened evenly over the last 14 days for visual interest)
+  orders.forEach((o, i) => {
+    const dayIdx = (i * 3) % days.length;
+    days[dayIdx].revenue += o.price * o.qty;
+    days[dayIdx].orderCount += 1;
+  });
+  const maxRev = Math.max(1, ...days.map(d => d.revenue));
+  const totalRev = days.reduce((s, d) => s + d.revenue, 0);
+
+  // Top products by orders
+  const productCounts = {};
+  orders.forEach(o => { productCounts[o.productId] = (productCounts[o.productId] || 0) + o.qty; });
+  const topProducts = Object.entries(productCounts)
+    .map(([pid, count]) => ({ product: state.products.find(p => p.id === pid), count }))
+    .filter(x => x.product)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // Top vendors by GMV
+  const vendorGmv = {};
+  orders.forEach(o => { vendorGmv[o.vendorId] = (vendorGmv[o.vendorId] || 0) + o.price * o.qty; });
+  const topVendors = Object.entries(vendorGmv)
+    .map(([vid, gmv]) => ({ vendor: state.vendors.find(v => v.id === vid), gmv }))
+    .filter(x => x.vendor)
+    .sort((a, b) => b.gmv - a.gmv)
+    .slice(0, 5);
+
+  // Order status breakdown
+  const statusCounts = {};
+  state.orders.forEach(o => { statusCounts[o.status] = (statusCounts[o.status] || 0) + 1; });
+  const totalOrdersAll = state.orders.length || 1;
+
+  return (
+    <div>
+      <div className="page-header"><div><h1 className="page-title">Sales analytics</h1><div className="page-sub">Last 14 days · {formatINR(totalRev)} revenue · {orders.length} orders</div></div></div>
+
+      <div className="panel" style={{ padding: 24, marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 16 }}>Revenue · last 14 days</h3>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 200, paddingBottom: 24, borderBottom: '1px solid var(--line-soft)' }}>
+          {days.map((d, i) => {
+            const h = (d.revenue / maxRev) * 100;
+            return (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                <div title={`${d.key}: ${formatINR(d.revenue)} · ${d.orderCount} orders`}
+                     style={{ width: '70%', height: `${h}%`, background: `linear-gradient(180deg, var(--rose-deep), var(--rose))`, borderRadius: '4px 4px 0 0', minHeight: d.revenue > 0 ? 4 : 0, transition: 'height 0.3s' }}></div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+          {days.map((d, i) => (
+            <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: 'var(--muted)' }}>{i % 2 === 0 ? d.key : ''}</div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div className="panel" style={{ padding: 24 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 16 }}>Top products by orders</h3>
+          {topProducts.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13 }}>No orders yet.</div> : topProducts.map((tp, i) => {
+            const maxCount = topProducts[0].count;
+            return (
+              <div key={tp.product.id} style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span><strong style={{ color: 'var(--rose-deep)', marginRight: 8 }}>#{i + 1}</strong>{tp.product.name}</span>
+                  <span style={{ color: 'var(--muted)' }}>{tp.count} {tp.count === 1 ? 'order' : 'orders'}</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--cream)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(tp.count / maxCount) * 100}%`, background: 'var(--rose)' }}></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="panel" style={{ padding: 24 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 16 }}>Top vendors by GMV</h3>
+          {topVendors.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13 }}>No vendor sales yet.</div> : topVendors.map((tv, i) => {
+            const maxGmv = topVendors[0].gmv;
+            return (
+              <div key={tv.vendor.id} style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span><strong style={{ color: 'var(--gold-deep)', marginRight: 8 }}>#{i + 1}</strong>{tv.vendor.name}</span>
+                  <span style={{ color: 'var(--muted)' }}>{formatINR(tv.gmv)}</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--cream)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(tv.gmv / maxGmv) * 100}%`, background: 'var(--gold)' }}></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="panel" style={{ padding: 24 }}>
+        <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 16 }}>Order status breakdown</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          {[
+            { id: 'to-ship',    label: 'To ship',    color: 'var(--gold)' },
+            { id: 'in-transit', label: 'In transit', color: 'var(--ink-mid)' },
+            { id: 'delivered',  label: 'Delivered',  color: 'var(--ok)' },
+            { id: 'cancelled',  label: 'Cancelled',  color: 'var(--alert)' },
+          ].map(s => {
+            const count = statusCounts[s.id] || 0;
+            const pct = (count / totalOrdersAll * 100).toFixed(0);
+            return (
+              <div key={s.id} style={{ padding: 14, background: 'var(--cream-light)', borderRadius: 10, borderLeft: `4px solid ${s.color}` }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</div>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: 28, fontWeight: 500, marginTop: 4 }}>{count}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>{pct}% of all orders</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
