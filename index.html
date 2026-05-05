@@ -1495,6 +1495,55 @@ const { useState, useEffect, useRef, useCallback, useMemo, createContext, useCon
 // ============ STORAGE ============
 const STORAGE_KEY = 'styli_platform_v1';
 
+// ============ D1 SYNC HELPERS (no-op when no token) ============
+// These fire-and-forget the change to D1 in the background. The local state
+// remains the UI source of truth so the app stays snappy and works offline.
+// All helpers swallow errors silently — if D1 is unreachable, the action
+// already succeeded locally, so the user experience is unchanged.
+const D1 = {
+  token: () => { try { return localStorage.getItem('styli-token'); } catch { return null; } },
+  authHeaders: function () {
+    const t = this.token();
+    return t ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${t}` } : null;
+  },
+  // Cart
+  cartAdd: function (productId, size, qty) {
+    const h = this.authHeaders(); if (!h) return;
+    fetch('/api/buyers/cart', { method: 'POST', headers: h, body: JSON.stringify({ productId, size, qty }) }).catch(() => {});
+  },
+  cartRemove: function (productId, size) {
+    const t = this.token(); if (!t) return;
+    fetch(`/api/buyers/cart?productId=${encodeURIComponent(productId)}&size=${encodeURIComponent(size)}`,
+      { method: 'DELETE', headers: { 'Authorization': `Bearer ${t}` } }).catch(() => {});
+  },
+  cartClear: function () {
+    const t = this.token(); if (!t) return;
+    fetch('/api/buyers/cart?clear=1', { method: 'DELETE', headers: { 'Authorization': `Bearer ${t}` } }).catch(() => {});
+  },
+  // Wishlist
+  wishlistToggle: function (productId) {
+    const h = this.authHeaders(); if (!h) return;
+    fetch('/api/buyers/wishlist', { method: 'POST', headers: h, body: JSON.stringify({ productId }) }).catch(() => {});
+  },
+  // Profile
+  profileUpdate: function (profile) {
+    const h = this.authHeaders(); if (!h) return;
+    fetch('/api/buyers/profile', { method: 'PATCH', headers: h, body: JSON.stringify(profile) }).catch(() => {});
+  },
+  // Place order — requires items to bundle a single API request
+  placeOrder: function (orderData) {
+    const h = this.authHeaders(); if (!h) return Promise.resolve(null);
+    return fetch('/api/orders', { method: 'POST', headers: h, body: JSON.stringify(orderData) })
+      .then(r => r.ok ? r.json() : null).catch(() => null);
+  },
+  // Generic GET helper — used to hydrate state on login
+  get: function (path) {
+    const t = this.token(); if (!t) return Promise.resolve(null);
+    return fetch(path, { headers: { 'Authorization': `Bearer ${t}` } })
+      .then(r => r.ok ? r.json() : null).catch(() => null);
+  },
+};
+
 const defaultState = () => ({
   vendors: [
     { id: 'v-kavya', email: 'kavya@boutique.in', password: 'demo123', name: 'Kavya Boutique', type: 'small', gst: '07AABCU9603R1ZN', city: 'Jaipur', phone: '9876543210', status: 'approved', appliedAt: '2 Apr 2026', score: 94, score_trend: 'stable' },
@@ -2083,6 +2132,7 @@ function Landing({ onNav }) {
     e.stopPropagation();
     if (!state.currentUser) { onNav('buyer-login'); return; }
     actions.toggleWishlist(id);
+    D1.wishlistToggle(id);
     addToast(isWished ? 'Removed from wishlist' : 'Saved to wishlist', isWished ? 'info' : 'success');
   };
 
@@ -2750,11 +2800,40 @@ function BuyerSignup({ onNav }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const submit = () => {
-    if (!name.trim() || !email.trim() || !password.trim()) return;
-    actions.signupBuyer({ name: name.trim(), email: email.trim(), password });
-    addToast('Welcome to Styli!', 'success');
+  const submit = async () => {
+    const n = name.trim(), e = email.trim();
+    if (!n || !e || !password.trim()) { addToast('Fill in all fields', 'warn'); return; }
+    if (password.length < 6) { addToast('Password must be at least 6 characters', 'warn'); return; }
+    setBusy(true);
+    // Try D1 first
+    try {
+      const res = await fetch('/api/auth/signup-buyer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: n, email: e, password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        try { localStorage.setItem('styli-token', data.token); } catch {}
+        actions.setCurrentUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: 'buyer' });
+        addToast('Welcome to Styli! (account created)', 'success');
+        setBusy(false);
+        onNav('buyer-onboard');
+        return;
+      }
+      if (res.status === 409) {
+        addToast('An account with this email already exists', 'warn');
+        setBusy(false);
+        return;
+      }
+      // Other API error — fall through to localStorage
+    } catch { /* network error → fall back */ }
+    // localStorage fallback
+    actions.signupBuyer({ name: n, email: e, password });
+    addToast('Welcome to Styli! (offline — signed up locally)', 'info');
+    setBusy(false);
     onNav('buyer-onboard');
   };
 
@@ -2777,7 +2856,7 @@ function BuyerSignup({ onNav }) {
           <label className="auth-label">Password</label>
           <input className="auth-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters" />
         </div>
-        <button className="btn btn-primary auth-btn" onClick={submit}>Create account →</button>
+        <button className="btn btn-primary auth-btn" disabled={busy} onClick={submit}>{busy ? 'Creating account…' : 'Create account →'}</button>
         <div className="auth-footer">
           Already a shopper? <a onClick={() => onNav('buyer-login')}>Log in</a>
         </div>
@@ -2790,14 +2869,42 @@ function BuyerLogin({ onNav }) {
   const { state, actions, addToast } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const submit = () => {
-    const buyer = state.buyers.find(b => b.email === email.trim() && b.password === password);
-    if (!buyer) { addToast('Invalid credentials. Create an account?', 'error', '✗'); return; }
+  const submit = async () => {
+    const e = email.trim();
+    if (!e || !password) { addToast('Fill in email and password', 'warn'); return; }
+    setBusy(true);
+    // Try D1 first
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: e, password, type: 'buyer' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        try { localStorage.setItem('styli-token', data.token); } catch {}
+        actions.setCurrentUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: 'buyer' });
+        addToast('Welcome back!', 'success');
+        setBusy(false);
+        onNav(state.buyerProfile ? 'buyer-shop' : 'buyer-onboard');
+        return;
+      }
+      if (res.status === 401) {
+        addToast('Invalid email or password', 'error', '✗');
+        setBusy(false);
+        return;
+      }
+      // Other API error — fall through to localStorage match
+    } catch { /* network error → fall back */ }
+    // localStorage fallback (legacy flow — for prototype demo accounts)
+    const buyer = state.buyers.find(b => b.email === e && b.password === password);
+    if (!buyer) { addToast('Invalid credentials. Create an account?', 'error', '✗'); setBusy(false); return; }
     actions.setCurrentUser({ ...buyer, role: 'buyer' });
-    addToast('Welcome back!', 'success');
-    if (state.buyerProfile) onNav('buyer-shop');
-    else onNav('buyer-onboard');
+    addToast('Welcome back! (offline)', 'info');
+    setBusy(false);
+    onNav(state.buyerProfile ? 'buyer-shop' : 'buyer-onboard');
   };
 
   return (
@@ -2815,7 +2922,7 @@ function BuyerLogin({ onNav }) {
           <label className="auth-label">Password</label>
           <input className="auth-input" type="password" value={password} onChange={e => setPassword(e.target.value)} />
         </div>
-        <button className="btn btn-primary auth-btn" onClick={submit}>Log in →</button>
+        <button className="btn btn-primary auth-btn" disabled={busy} onClick={submit}>{busy ? 'Logging in…' : 'Log in →'}</button>
         <div className="auth-footer">
           New here? <a onClick={() => onNav('buyer-signup')}>Create account</a>
         </div>
@@ -2829,22 +2936,54 @@ function VendorLogin({ onNav }) {
   const { state, actions, addToast } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const submit = () => {
-    const vendor = state.vendors.find(v => v.email === email.trim() && v.password === password);
-    if (!vendor) { addToast('Invalid credentials.', 'error', '✗'); return; }
+  const submit = async () => {
+    const e = email.trim();
+    if (!e || !password) { addToast('Fill in email and password', 'warn'); return; }
+    setBusy(true);
+    // Try D1 first
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: e, password, type: 'vendor' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        try { localStorage.setItem('styli-token', data.token); } catch {}
+        actions.setCurrentUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: 'vendor' });
+        addToast(`Welcome, ${data.user.name}`, 'success');
+        setBusy(false);
+        onNav('vendor-dashboard');
+        return;
+      }
+      if (res.status === 403) {
+        // Application pending or rejected — fall through to local lookup to keep the friendly UX
+      } else if (res.status === 401) {
+        addToast('Invalid credentials.', 'error', '✗');
+        setBusy(false);
+        return;
+      }
+    } catch { /* network error → fall back */ }
+    // localStorage fallback (legacy + handles pending/rejected gracefully)
+    const vendor = state.vendors.find(v => v.email === e && v.password === password);
+    if (!vendor) { addToast('Invalid credentials.', 'error', '✗'); setBusy(false); return; }
     if (vendor.status === 'pending') {
       addToast('Application still under review.', 'warn');
       actions.setCurrentUser({ ...vendor, role: 'vendor-pending' });
+      setBusy(false);
       onNav('vendor-pending');
       return;
     }
     if (vendor.status === 'rejected') {
       addToast('Application was not approved.', 'error', '✗');
+      setBusy(false);
       return;
     }
     actions.setCurrentUser({ ...vendor, role: 'vendor' });
-    addToast(`Welcome, ${vendor.name}`, 'success');
+    addToast(`Welcome, ${vendor.name} (offline)`, 'info');
+    setBusy(false);
     onNav('vendor-dashboard');
   };
 
@@ -3070,6 +3209,7 @@ function BuyerOnboard({ onNav }) {
 
   const finish = () => {
     actions.updateBuyerProfile(profile);
+    D1.profileUpdate(profile);
     addToast('Profile complete. Welcome to Styli.', 'success');
     onNav('buyer-shop');
   };
@@ -3300,6 +3440,7 @@ function BuyerShop({ onNav }) {
                     onClick={(e) => {
                       e.stopPropagation();
                       actions.toggleWishlist(p.id);
+                      D1.wishlistToggle(p.id);
                       addToast(wished ? 'Removed from wishlist' : 'Saved to wishlist', wished ? 'info' : 'success');
                     }}
                     aria-label={wished ? 'Remove from wishlist' : 'Save to wishlist'}
@@ -3331,6 +3472,7 @@ function BuyerProduct({ onNav, productId }) {
   const addCart = () => {
     if (!size) { addToast('Pick a size first', 'warn'); return; }
     actions.addToCart({ productId: p.id, size, qty: 1, price: p.price });
+    D1.cartAdd(p.id, size, 1);
     addToast(`Added to cart`, 'success');
   };
 
@@ -3375,6 +3517,7 @@ function BuyerProduct({ onNav, productId }) {
                 className="btn btn-secondary"
                 onClick={() => {
                   actions.toggleWishlist(p.id);
+                  D1.wishlistToggle(p.id);
                   addToast(wished ? 'Removed from wishlist' : 'Saved to wishlist', wished ? 'info' : 'success');
                 }}
                 aria-label={wished ? 'Remove from wishlist' : 'Save to wishlist'}
@@ -3405,10 +3548,20 @@ function BuyerCart({ onNav }) {
   const [city, setCity] = useState(user?.city || 'Delhi');
   const [pin, setPin] = useState('110001');
 
-  const checkout = () => {
+  const checkout = async () => {
     if (items.length === 0) return;
+    // Try D1 first — orders endpoint reads cart from D1, creates orders, clears cart server-side
+    const d1res = await D1.placeOrder({ city, pin });
+    if (d1res?.success) {
+      // Mirror clear in local state so UI updates immediately
+      actions.placeOrders({ name: user.name, city, pin });
+      addToast(`${d1res.orderCount} order${d1res.orderCount !== 1 ? 's' : ''} placed! (saved to D1)`, 'success', '🛍');
+      onNav('buyer-orders');
+      return;
+    }
+    // Fallback: place in localStorage only
     actions.placeOrders({ name: user.name, city, pin });
-    addToast(`${items.length} order${items.length !== 1 ? 's' : ''} placed!`, 'success', '🛍');
+    addToast(`${items.length} order${items.length !== 1 ? 's' : ''} placed! (offline)`, 'info', '🛍');
     onNav('buyer-orders');
   };
 
@@ -3440,11 +3593,11 @@ function BuyerCart({ onNav }) {
                   <div className="cart-item-meta">Size {it.size}</div>
                   <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
                     <div className="quantity-control">
-                      <button className="qty-btn" onClick={() => actions.updateCartQty(it.productId, it.size, Math.max(1, it.qty - 1))}>−</button>
+                      <button className="qty-btn" onClick={() => { const q = Math.max(1, it.qty - 1); actions.updateCartQty(it.productId, it.size, q); D1.cartAdd(it.productId, it.size, q); }}>−</button>
                       <input className="qty-input" value={it.qty} readOnly />
-                      <button className="qty-btn" onClick={() => actions.updateCartQty(it.productId, it.size, it.qty + 1)}>+</button>
+                      <button className="qty-btn" onClick={() => { const q = it.qty + 1; actions.updateCartQty(it.productId, it.size, q); D1.cartAdd(it.productId, it.size, q); }}>+</button>
                     </div>
-                    <button className="btn btn-small btn-ghost" onClick={() => actions.removeFromCart(it.productId, it.size)}>Remove</button>
+                    <button className="btn btn-small btn-ghost" onClick={() => { actions.removeFromCart(it.productId, it.size); D1.cartRemove(it.productId, it.size); }}>Remove</button>
                   </div>
                 </div>
                 <div className="cart-item-price">{formatINR(it.price * it.qty)}</div>
@@ -3635,7 +3788,7 @@ function BuyerWishlist({ onNav }) {
                     {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} onError={imgFallback(p.id)} />}
                     <button
                       className="wish-btn active"
-                      onClick={(e) => { e.stopPropagation(); actions.toggleWishlist(p.id); addToast('Removed from wishlist', 'info'); }}
+                      onClick={(e) => { e.stopPropagation(); actions.toggleWishlist(p.id); D1.wishlistToggle(p.id); addToast('Removed from wishlist', 'info'); }}
                       aria-label="Remove from wishlist"
                     ></button>
                   </div>
