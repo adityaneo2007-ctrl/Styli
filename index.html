@@ -3136,29 +3136,56 @@ function AdminLogin({ onNav }) {
   const { actions, addToast } = useApp();
   const [email, setEmail] = useState('admin@styli.in');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (password !== 'admin123') { addToast('Invalid credentials.', 'error', '✗'); return; }
-    actions.setCurrentUser({ id: 'admin', name: 'Admin', email, role: 'admin' });
+    const e = email.trim();
+    if (!e || !password) { addToast('Fill in email and password', 'warn'); return; }
+    setBusy(true);
 
-    // Also fetch a team-level token so the new D1-backed admin views can authenticate.
-    // Maps the legacy admin login to the seeded team-super account.
+    // 1) Try to authenticate against D1 with the typed credentials (type='team').
+    //    This is the path real team members use — works for any team_members row.
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'super@styli.in', password: 'super123', type: 'team' }),
+        body: JSON.stringify({ email: e, password, type: 'team' }),
       });
       if (res.ok) {
         const data = await res.json();
-        if (data?.token) {
-          try { localStorage.setItem('styli-admin-token', data.token); } catch {}
-        }
+        if (data?.token) { try { localStorage.setItem('styli-admin-token', data.token); } catch {} }
+        actions.setCurrentUser({ id: data.user.id, name: data.user.name, email: data.user.email, role: 'admin' });
+        addToast(`Logged in as ${data.user.name}`, 'success');
+        setBusy(false);
+        onNav('admin-dashboard');
+        return;
       }
-    } catch { /* offline / API unavailable — admin views will fall back to localStorage */ }
+      // 401 / 403 — fall through to legacy alias check below
+    } catch { /* network error → fall through */ }
 
-    addToast('Logged in as Admin', 'success');
-    onNav('admin-dashboard');
+    // 2) Legacy alias: typing admin@styli.in / admin123 still works, mapped to
+    //    the seeded super@styli.in / super123 account behind the scenes.
+    if (e === 'admin@styli.in' && password === 'admin123') {
+      actions.setCurrentUser({ id: 'admin', name: 'Admin', email: e, role: 'admin' });
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'super@styli.in', password: 'super123', type: 'team' }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.token) { try { localStorage.setItem('styli-admin-token', data.token); } catch {} }
+        }
+      } catch {}
+      addToast('Logged in as Admin', 'success');
+      setBusy(false);
+      onNav('admin-dashboard');
+      return;
+    }
+
+    addToast('Invalid email or password', 'error', '✗');
+    setBusy(false);
   };
 
   return (
@@ -3176,9 +3203,10 @@ function AdminLogin({ onNav }) {
           <label className="auth-label">Password</label>
           <input className="auth-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="admin123" />
         </div>
-        <button className="btn btn-primary auth-btn" onClick={submit}>Log in →</button>
+        <button className="btn btn-primary auth-btn" disabled={busy} onClick={submit}>{busy ? 'Logging in…' : 'Log in →'}</button>
         <div style={{ marginTop: 16, padding: 12, background: 'var(--cream)', borderRadius: 10, fontSize: 12, color: 'var(--muted)' }}>
-          <strong style={{ color: 'var(--ink)' }}>Demo credentials:</strong> admin@styli.in / admin123
+          <strong style={{ color: 'var(--ink)' }}>Demo credentials:</strong> admin@styli.in / admin123<br/>
+          <span style={{ fontSize: 11 }}>(Or any team member you've created — super@styli.in / super123, team@styli.in / team123, etc.)</span>
         </div>
       </div>
     </div>
