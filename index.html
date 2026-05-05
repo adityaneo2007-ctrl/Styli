@@ -5309,66 +5309,315 @@ function AdminVendors() {
   );
 }
 
+// ============ ADMIN PRODUCTS — product master, D1-backed with localStorage fallback ============
+const EMPTY_PRODUCT_FORM = {
+  vendorId: '',
+  name: '',
+  category: '',
+  price: '',
+  originalPrice: '',
+  sizes: 'S,M,L',
+  stock: 'S:10, M:10, L:10',
+  description: '',
+  tags: '',
+  imageUrl: '',
+  grad: 'grad-1',
+  isNew: false,
+  isExclusive: false,
+  listed: true,
+  approved: true,
+};
+
+function parseStockString(s) {
+  // "S:8, M:12, L:5" → { S: 8, M: 12, L: 5 }
+  const out = {};
+  (s || '').split(',').forEach(part => {
+    const [k, v] = part.split(':').map(x => (x || '').trim());
+    if (k && /^\d+$/.test(v)) out[k.toUpperCase()] = parseInt(v, 10);
+  });
+  return out;
+}
+function stockToString(stockObj) {
+  if (!stockObj || typeof stockObj !== 'object') return '';
+  return Object.entries(stockObj).map(([k, v]) => `${k}:${v}`).join(', ');
+}
+
 function AdminProducts() {
   const { state, actions, addToast } = useApp();
+  const [apiProducts, setApiProducts] = useState(null);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all'); // all | live | hidden
-  const filtered = state.products.filter(p =>
-    (!search || p.name.toLowerCase().includes(search.toLowerCase())) &&
-    (filter === 'all' || (filter === 'live' && p.listed) || (filter === 'hidden' && !p.listed))
-  );
-  const remove = (id, name) => {
-    if (window.confirm(`Delete "${name}"? This cannot be undone.`)) {
-      actions.deleteProduct(id);
-      addToast('Product deleted', 'info');
+  const [filter, setFilter] = useState('all'); // all | live | pending | unlisted
+  const [vendorFilter, setVendorFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(EMPTY_PRODUCT_FORM);
+
+  const getToken = () => { try { return localStorage.getItem('styli-admin-token'); } catch { return null; } };
+  const usingDB = apiProducts !== null;
+
+  const refresh = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const params = new URLSearchParams();
+      if (filter === 'pending') params.set('status', 'pending');
+      else if (filter === 'unlisted') params.set('status', 'unlisted');
+      else if (filter === 'live') params.set('status', 'live');
+      if (search) params.set('search', search);
+      if (vendorFilter) params.set('vendor', vendorFilter);
+      const url = '/api/admin/products' + (params.toString() ? '?' + params.toString() : '');
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setApiProducts(data.products || []);
+      }
+    } catch {}
+  }, [filter, search, vendorFilter]);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Vendor list for the dropdown — pulled from local state (Vendors view will sync it from D1 on its own page load)
+  const vendorOptions = (state.vendors || []).filter(v => v.status === 'approved' || v.status === 'pending');
+
+  const products = useMemo(() => {
+    if (usingDB) {
+      return apiProducts.map(p => ({
+        id: p.id, name: p.name, description: p.description || '',
+        category: p.category, price: p.price, originalPrice: p.original_price,
+        vendorId: p.vendor_id, vendorName: p.vendor_name,
+        sizes: safeArr(p.sizes), stock: safeObj(p.stock), tags: safeArr(p.tags),
+        imageUrl: p.image_url, grad: p.grad,
+        listed: !!p.listed, approved: !!p.approved,
+        isNew: !!p.is_new, isExclusive: !!p.is_exclusive,
+        rating: p.rating || 0, reviewCount: p.review_count || 0,
+      }));
     }
+    return state.products
+      .filter(p =>
+        (!search || p.name.toLowerCase().includes(search.toLowerCase())) &&
+        (filter === 'all' || (filter === 'live' && p.listed && p.approved) || (filter === 'unlisted' && !p.listed) || (filter === 'pending' && !p.approved))
+      )
+      .map(p => ({ ...p, vendorName: (state.vendors.find(v => v.id === p.vendorId) || {}).name }));
+  }, [apiProducts, state.products, state.vendors, search, filter, usingDB]);
+
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ ...EMPTY_PRODUCT_FORM, vendorId: vendorOptions[0]?.id || '' });
+    setShowModal(true);
   };
+  const openEdit = (p) => {
+    setEditing(p);
+    setForm({
+      vendorId: p.vendorId || '',
+      name: p.name || '',
+      category: p.category || '',
+      price: p.price ? String(p.price) : '',
+      originalPrice: p.originalPrice ? String(p.originalPrice) : '',
+      sizes: (p.sizes || []).join(','),
+      stock: stockToString(p.stock),
+      description: p.description || '',
+      tags: (p.tags || []).join(','),
+      imageUrl: p.imageUrl || '',
+      grad: p.grad || 'grad-1',
+      isNew: !!p.isNew,
+      isExclusive: !!p.isExclusive,
+      listed: !!p.listed,
+      approved: !!p.approved,
+    });
+    setShowModal(true);
+  };
+
+  const submit = async () => {
+    const sizes = form.sizes.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    const stock = parseStockString(form.stock);
+    const tags = form.tags.split(',').map(t => t.trim()).filter(Boolean);
+    const price = parseInt(form.price, 10);
+    const originalPrice = form.originalPrice ? parseInt(form.originalPrice, 10) : null;
+
+    if (!form.vendorId) { addToast('Pick a vendor', 'warn'); return; }
+    if (!form.name.trim()) { addToast('Product name required', 'warn'); return; }
+    if (!form.category.trim()) { addToast('Category required', 'warn'); return; }
+    if (!price || price <= 0) { addToast('Price must be > 0 (in paise — e.g. 159900 means ₹1,599)', 'warn'); return; }
+    if (sizes.length === 0) { addToast('At least one size', 'warn'); return; }
+
+    const token = getToken();
+    if (token) {
+      try {
+        let res;
+        if (editing) {
+          // Edit existing — use /api/products/:id
+          res = await fetch(`/api/products/${encodeURIComponent(editing.id)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              name: form.name, category: form.category, price, originalPrice,
+              sizes, stock, tags, description: form.description, imageUrl: form.imageUrl,
+              grad: form.grad, listed: form.listed, isNew: form.isNew, isExclusive: form.isExclusive,
+              approved: form.approved, vendorId: form.vendorId,
+            }),
+          });
+        } else {
+          // Create new — admin endpoint
+          res = await fetch('/api/admin/products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              vendorId: form.vendorId, name: form.name, category: form.category,
+              price, originalPrice, sizes, stock, tags, description: form.description,
+              imageUrl: form.imageUrl, grad: form.grad, listed: form.listed,
+              isNew: form.isNew, isExclusive: form.isExclusive,
+            }),
+          });
+        }
+        if (res.ok) { addToast(editing ? 'Product updated (saved to D1)' : 'Product created (saved to D1)', 'success'); setShowModal(false); setEditing(null); refresh(); return; }
+        const d = await res.json().catch(() => ({}));
+        addToast(d.error || `Server error (${res.status})`, 'warn');
+        return;
+      } catch {}
+    }
+    // localStorage fallback
+    if (editing) actions.updateProduct(editing.id, { name: form.name, category: form.category, price, sizes, stock, tags, imageUrl: form.imageUrl, grad: form.grad, listed: form.listed });
+    else actions.addProduct({ vendorId: form.vendorId, name: form.name, category: form.category, price, sizes, stock, tags, imageUrl: form.imageUrl, grad: form.grad, listed: form.listed });
+    addToast(editing ? 'Product updated (local only)' : 'Product created (local only)', 'info');
+    setShowModal(false); setEditing(null);
+  };
+
+  const moderate = async (productId, action) => {
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ productId, action }),
+        });
+        if (res.ok) { addToast(`Product ${action}ed`, 'success'); refresh(); return; }
+      } catch {}
+    }
+    // Fallback
+    if (action === 'unlist' || action === 'relist') actions.toggleProductListed(productId);
+    addToast(`Product ${action}ed (local only)`, 'info');
+  };
+
+  const remove = async (p) => {
+    if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch(`/api/admin/products?id=${encodeURIComponent(p.id)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.ok) { addToast('Product deleted', 'info'); refresh(); return; }
+        if (res.status === 403) { addToast('Forbidden — needs Superadmin', 'warn'); return; }
+      } catch {}
+    }
+    actions.deleteProduct(p.id);
+    addToast('Product deleted (local only)', 'info');
+  };
+
+  const liveCount = products.filter(p => p.listed && p.approved).length;
+  const pendingCount = products.filter(p => !p.approved).length;
+
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">All products</h1><div className="page-sub">{state.products.length} products across all vendors · {state.products.filter(p => p.listed).length} live</div></div>
-        <button className="btn btn-secondary" onClick={() => {
-          const rows = filtered.map(p => {
-            const v = state.vendors.find(x => x.id === p.vendorId);
-            return [p.id, p.name, v?.name || '', p.category, p.price, totalStock(p.stock), p.listed ? 'Live' : 'Hidden', p.rating || 0, p.reviewCount || 0];
-          });
-          downloadCSV('styli-products.csv', ['Product ID', 'Name', 'Vendor', 'Category', 'Price (paise)', 'Stock', 'Status', 'Rating', 'Reviews'], rows);
-          addToast(`Exported ${rows.length} products`, 'success');
-        }}>Export CSV</button>
+        <div>
+          <h1 className="page-title">Product master</h1>
+          <div className="page-sub">{products.length} products · {liveCount} live · {pendingCount} pending {usingDB && <span style={{ color: 'var(--ok)', marginLeft: 8 }}>· D1 ✓</span>}{!usingDB && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· local only</span>}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => {
+            const rows = products.map(p => [p.id, p.name, p.vendorName || '', p.category, p.price, totalStock(p.stock), p.listed ? 'Live' : 'Hidden', p.approved ? 'Approved' : 'Pending', p.rating || 0, p.reviewCount || 0]);
+            downloadCSV('styli-products.csv', ['Product ID', 'Name', 'Vendor', 'Category', 'Price (paise)', 'Stock', 'Listed', 'Approved', 'Rating', 'Reviews'], rows);
+            addToast(`Exported ${rows.length} products`, 'success');
+          }}>Export CSV</button>
+          <button className="btn btn-primary" onClick={openAdd}>+ New product</button>
+        </div>
       </div>
+
       <div className="filter-bar" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
         <input className="search-field" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
         <select className="search-field" value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="all">All</option>
           <option value="live">Live only</option>
-          <option value="hidden">Hidden only</option>
+          <option value="pending">Pending approval</option>
+          <option value="unlisted">Unlisted</option>
+        </select>
+        <select className="search-field" value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}>
+          <option value="">All vendors</option>
+          {vendorOptions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
         </select>
       </div>
+
       <div className="panel">
         <table className="table">
-          <thead><tr><th>Product</th><th>Vendor</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+          <thead><tr><th>Product</th><th>Vendor</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Approval</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
           <tbody>
-            {filtered.map(p => {
-              const v = state.vendors.find(x => x.id === p.vendorId);
-              return <tr key={p.id}>
+            {products.map(p => (
+              <tr key={p.id}>
                 <td><div className="product-row"><div className={`product-thumb ${p.grad}`}>{p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" onLoad={e => e.currentTarget.classList.add('loaded')} />}</div><div><div className="cell-primary">{p.name}</div><div className="cell-sub mono">{p.id}</div></div></div></td>
-                <td>{v?.name || '—'}</td>
+                <td>{p.vendorName || '—'}</td>
                 <td>{p.category}</td>
                 <td className="cell-primary">{formatINR(p.price)}</td>
                 <td>{totalStock(p.stock)}</td>
                 <td>{p.listed ? <span className="badge badge-ok">Live</span> : <span className="badge badge-neutral">Unlisted</span>}</td>
-                <td style={{textAlign:'right'}}>
-                  <button className="btn btn-small btn-ghost" onClick={() => { actions.toggleProductListed(p.id); addToast(p.listed ? 'Product unlisted' : 'Product re-listed', 'info'); }}>{p.listed ? 'Unlist' : 'Re-list'}</button>
-                  <button className="btn btn-small btn-ghost" onClick={() => remove(p.id, p.name)} style={{ marginLeft: 6, color: 'var(--alert)' }}>Delete</button>
+                <td>{p.approved ? <span className="badge badge-ok">Approved</span> : <span className="badge badge-warn">Pending</span>}</td>
+                <td style={{textAlign:'right', whiteSpace: 'nowrap'}}>
+                  {!p.approved && <button className="btn btn-small btn-ghost" onClick={() => moderate(p.id, 'approve')}>Approve</button>}
+                  <button className="btn btn-small btn-ghost" style={{ marginLeft: 6 }} onClick={() => openEdit(p)}>Edit</button>
+                  <button className="btn btn-small btn-ghost" style={{ marginLeft: 6 }} onClick={() => moderate(p.id, p.listed ? 'unlist' : 'relist')}>{p.listed ? 'Unlist' : 'Re-list'}</button>
+                  <button className="btn btn-small btn-ghost" onClick={() => remove(p)} style={{ marginLeft: 6, color: 'var(--alert)' }}>Delete</button>
                 </td>
-              </tr>;
-            })}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
+
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowModal(false)}>
+          <div className="panel" style={{ maxWidth: 720, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 24 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 500, marginBottom: 16 }}>{editing ? `Edit ${editing.name}` : 'Create new product'}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <div className="field"><label className="field-label">Vendor *</label>
+                <select className="field-input" value={form.vendorId} onChange={e => setForm({ ...form, vendorId: e.target.value })}>
+                  <option value="">— pick a vendor —</option>
+                  {vendorOptions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="field"><label className="field-label">Category *</label><input className="field-input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Kurtas, Dresses, Shirts..." /></div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}><label className="field-label">Product name *</label><input className="field-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+              <div className="field"><label className="field-label">Price (paise) *</label><input className="field-input" type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="159900 = ₹1,599" /></div>
+              <div className="field"><label className="field-label">Original price (paise, optional)</label><input className="field-input" type="number" value={form.originalPrice} onChange={e => setForm({ ...form, originalPrice: e.target.value })} placeholder="220000 = ₹2,200" /></div>
+              <div className="field"><label className="field-label">Sizes (comma sep) *</label><input className="field-input" value={form.sizes} onChange={e => setForm({ ...form, sizes: e.target.value })} placeholder="S,M,L,XL" /></div>
+              <div className="field"><label className="field-label">Stock per size</label><input className="field-input" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} placeholder="S:10, M:12, L:8" /></div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}><label className="field-label">Image URL</label><input className="field-input" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://images.unsplash.com/..." /></div>
+              <div className="field"><label className="field-label">Gradient (visual fallback)</label>
+                <select className="field-input" value={form.grad} onChange={e => setForm({ ...form, grad: e.target.value })}>
+                  {['grad-1','grad-2','grad-3','grad-4','grad-5','grad-6','grad-7','grad-8'].map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div className="field"><label className="field-label">Tags (comma sep)</label><input className="field-input" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="Cotton,A-line,Casual" /></div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}><label className="field-label">Description</label>
+                <textarea className="field-input" rows="3" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+              </div>
+              <div className="field"><label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={form.listed} onChange={e => setForm({ ...form, listed: e.target.checked })} /> Listed (visible in store)</label></div>
+              <div className="field"><label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={form.approved} onChange={e => setForm({ ...form, approved: e.target.checked })} /> Approved</label></div>
+              <div className="field"><label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={form.isNew} onChange={e => setForm({ ...form, isNew: e.target.checked })} /> Mark as New</label></div>
+              <div className="field"><label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={form.isExclusive} onChange={e => setForm({ ...form, isExclusive: e.target.checked })} /> Mark as Exclusive</label></div>
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost" onClick={() => { setShowModal(false); setEditing(null); }}>Cancel</button>
+              <button className="btn btn-primary" onClick={submit}>{editing ? 'Save changes' : 'Create product'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+function safeArr(s) { try { const v = JSON.parse(s); return Array.isArray(v) ? v : []; } catch { return Array.isArray(s) ? s : []; } }
+function safeObj(s) { try { const v = JSON.parse(s); return v && typeof v === 'object' ? v : {}; } catch { return s && typeof s === 'object' ? s : {}; } }
 
 function AdminOrders() {
   const { state, addToast } = useApp();

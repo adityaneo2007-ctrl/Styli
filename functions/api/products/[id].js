@@ -40,34 +40,51 @@ export async function onRequestPatch(context) {
   const dbErr = requireDB(env); if (dbErr) return dbErr;
 
   const session = await getSession(env, request);
-  if (!session || session.userType !== 'vendor') return error('Vendor login required', 401);
+  if (!session) return error('Authentication required', 401);
 
   const id = clean(params.id, 50);
   const product = await env.DB.prepare('SELECT vendor_id FROM products WHERE id = ?').bind(id).first();
   if (!product) return error('Product not found', 404);
-  if (product.vendor_id !== session.userId) return error('Forbidden — not your product', 403);
+
+  // Vendor edits own; team with edit.products.unlist can edit any
+  const isOwner = session.userType === 'vendor' && product.vendor_id === session.userId;
+  const isTeamEditor = session.userType === 'team' && await teamCan(env, 'edit.products.unlist', session.userRole);
+  if (!isOwner && !isTeamEditor) return error('Forbidden', 403);
 
   const [body, parseErr] = await parseJSON(request); if (parseErr) return parseErr;
 
   // Build dynamic update — only update fields that were provided
   const fields = [];
   const binds = [];
-  if ('name' in body)        { fields.push('name = ?');         binds.push(clean(body.name, 200)); }
-  if ('description' in body) { fields.push('description = ?');  binds.push(clean(body.description, 2000)); }
-  if ('price' in body)       { fields.push('price = ?');        binds.push(parseInt(body.price, 10)); }
+  if ('name' in body)         { fields.push('name = ?');         binds.push(clean(body.name, 200)); }
+  if ('description' in body)  { fields.push('description = ?');  binds.push(clean(body.description, 2000)); }
+  if ('category' in body)     { fields.push('category = ?');     binds.push(clean(body.category, 50)); }
+  if ('price' in body)        { fields.push('price = ?');        binds.push(parseInt(body.price, 10)); }
   if ('originalPrice' in body) { fields.push('original_price = ?'); binds.push(body.originalPrice ? parseInt(body.originalPrice, 10) : null); }
-  if ('listed' in body)      { fields.push('listed = ?');       binds.push(body.listed ? 1 : 0); }
-  if ('stock' in body)       { fields.push('stock = ?');        binds.push(JSON.stringify(body.stock || {})); }
-  if ('tags' in body)        { fields.push('tags = ?');         binds.push(JSON.stringify(body.tags || [])); }
-  if ('sizes' in body)       { fields.push('sizes = ?');        binds.push(JSON.stringify(body.sizes || [])); }
-  if ('imageUrl' in body)    { fields.push('image_url = ?');    binds.push(clean(body.imageUrl, 500)); }
+  if ('listed' in body)       { fields.push('listed = ?');       binds.push(body.listed ? 1 : 0); }
+  if ('stock' in body)        { fields.push('stock = ?');        binds.push(JSON.stringify(body.stock || {})); }
+  if ('tags' in body)         { fields.push('tags = ?');         binds.push(JSON.stringify(body.tags || [])); }
+  if ('sizes' in body)        { fields.push('sizes = ?');        binds.push(JSON.stringify(body.sizes || [])); }
+  if ('imageUrl' in body)     { fields.push('image_url = ?');    binds.push(clean(body.imageUrl, 500)); }
+  if ('grad' in body)         { fields.push('grad = ?');         binds.push(clean(body.grad, 20)); }
+  // Team-only fields
+  if (isTeamEditor) {
+    if ('isNew' in body)       { fields.push('is_new = ?');       binds.push(body.isNew ? 1 : 0); }
+    if ('isExclusive' in body) { fields.push('is_exclusive = ?'); binds.push(body.isExclusive ? 1 : 0); }
+    if ('approved' in body)    { fields.push('approved = ?');     binds.push(body.approved ? 1 : 0); }
+    if ('vendorId' in body)    { fields.push('vendor_id = ?');    binds.push(clean(body.vendorId, 50)); }
+  }
 
   if (fields.length === 0) return error('No fields to update', 400);
   fields.push('updated_at = ?'); binds.push(now());
   binds.push(id);
 
-  await env.DB.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).bind(...binds).run();
-  return json({ success: true });
+  try {
+    await env.DB.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).bind(...binds).run();
+    return json({ success: true });
+  } catch (err) {
+    return error('Server error', 500, err?.message);
+  }
 }
 
 export async function onRequestDelete(context) {
