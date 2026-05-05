@@ -2875,7 +2875,8 @@ function BuyerLogin({ onNav }) {
     const e = email.trim();
     if (!e || !password) { addToast('Fill in email and password', 'warn'); return; }
     setBusy(true);
-    // Try D1 first
+    // Try D1 first — but always fall back to localStorage on any failure,
+    // so accounts created locally before Deploy A can still log in.
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -2891,20 +2892,20 @@ function BuyerLogin({ onNav }) {
         onNav(state.buyerProfile ? 'buyer-shop' : 'buyer-onboard');
         return;
       }
-      if (res.status === 401) {
-        addToast('Invalid email or password', 'error', '✗');
-        setBusy(false);
-        return;
-      }
-      // Other API error — fall through to localStorage match
+      // 401 / 5xx / other — fall through to localStorage match
     } catch { /* network error → fall back */ }
-    // localStorage fallback (legacy flow — for prototype demo accounts)
+    // localStorage fallback (legacy demo accounts + accounts created before Deploy A)
     const buyer = state.buyers.find(b => b.email === e && b.password === password);
-    if (!buyer) { addToast('Invalid credentials. Create an account?', 'error', '✗'); setBusy(false); return; }
-    actions.setCurrentUser({ ...buyer, role: 'buyer' });
-    addToast('Welcome back! (offline)', 'info');
+    if (buyer) {
+      actions.setCurrentUser({ ...buyer, role: 'buyer' });
+      addToast('Welcome back! (offline — log out and sign up again to migrate to D1)', 'info');
+      setBusy(false);
+      onNav(state.buyerProfile ? 'buyer-shop' : 'buyer-onboard');
+      return;
+    }
+    // Neither D1 nor localStorage knew this account
+    addToast('Invalid email or password', 'error', '✗');
     setBusy(false);
-    onNav(state.buyerProfile ? 'buyer-shop' : 'buyer-onboard');
   };
 
   return (
@@ -2942,7 +2943,7 @@ function VendorLogin({ onNav }) {
     const e = email.trim();
     if (!e || !password) { addToast('Fill in email and password', 'warn'); return; }
     setBusy(true);
-    // Try D1 first
+    // Try D1 first — always fall back to localStorage on any failure
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -2958,15 +2959,9 @@ function VendorLogin({ onNav }) {
         onNav('vendor-dashboard');
         return;
       }
-      if (res.status === 403) {
-        // Application pending or rejected — fall through to local lookup to keep the friendly UX
-      } else if (res.status === 401) {
-        addToast('Invalid credentials.', 'error', '✗');
-        setBusy(false);
-        return;
-      }
+      // 401 / 403 / 5xx — fall through to localStorage match
     } catch { /* network error → fall back */ }
-    // localStorage fallback (legacy + handles pending/rejected gracefully)
+    // localStorage fallback (legacy demo accounts + handles pending/rejected gracefully)
     const vendor = state.vendors.find(v => v.email === e && v.password === password);
     if (!vendor) { addToast('Invalid credentials.', 'error', '✗'); setBusy(false); return; }
     if (vendor.status === 'pending') {
