@@ -3003,9 +3003,26 @@ function AdminLogin({ onNav }) {
   const [email, setEmail] = useState('admin@styli.in');
   const [password, setPassword] = useState('');
 
-  const submit = () => {
+  const submit = async () => {
     if (password !== 'admin123') { addToast('Invalid credentials.', 'error', '✗'); return; }
     actions.setCurrentUser({ id: 'admin', name: 'Admin', email, role: 'admin' });
+
+    // Also fetch a team-level token so the new D1-backed admin views can authenticate.
+    // Maps the legacy admin login to the seeded team-super account.
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'super@styli.in', password: 'super123', type: 'team' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.token) {
+          try { localStorage.setItem('styli-admin-token', data.token); } catch {}
+        }
+      }
+    } catch { /* offline / API unavailable — admin views will fall back to localStorage */ }
+
     addToast('Logged in as Admin', 'success');
     onNav('admin-dashboard');
   };
@@ -5546,28 +5563,95 @@ function AdminAuditLog() {
   );
 }
 
-// ============ ADMIN PROMOTIONS — discount code management ============
+// ============ ADMIN PROMOTIONS — discount code management (D1-backed with localStorage fallback) ============
 function AdminPromotions() {
   const { state, actions, addToast } = useApp();
-  const codes = state.discountCodes || [];
+  const [apiCodes, setApiCodes] = useState(null);    // null = haven't fetched / API unavailable
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ code: '', type: 'percent', value: 10, minCart: 0, maxUses: 100, expiresAt: '', notes: '' });
 
-  const submit = () => {
+  // Source of truth: API rows when available, otherwise localStorage
+  const codes = apiCodes !== null
+    ? apiCodes.map(c => ({ id: c.id, code: c.code, type: c.type, value: c.value, minCart: c.min_cart, maxUses: c.max_uses, usedCount: c.used_count, expiresAt: c.expires_at, active: !!c.active, notes: c.notes, createdAt: c.created_at }))
+    : (state.discountCodes || []);
+  const usingDB = apiCodes !== null;
+
+  const getToken = () => { try { return localStorage.getItem('styli-admin-token'); } catch { return null; } };
+
+  const refresh = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/admin/promotions', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setApiCodes(data.codes || []);
+      }
+    } catch { /* fall back silently */ }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const submit = async () => {
     const code = form.code.trim().toUpperCase();
     if (!code) { addToast('Code required', 'warn'); return; }
     if (codes.some(c => c.code === code)) { addToast('Code already exists', 'warn'); return; }
+
+    const token = getToken();
+    if (token) {
+      try {
+        const res = await fetch('/api/admin/promotions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ ...form, code }),
+        });
+        if (res.ok) {
+          addToast(`Created code ${code} (saved to D1)`, 'success');
+          setForm({ code: '', type: 'percent', value: 10, minCart: 0, maxUses: 100, expiresAt: '', notes: '' });
+          setShowAdd(false);
+          refresh();
+          return;
+        } else if (res.status === 409) {
+          addToast('Code already exists', 'warn'); return;
+        }
+      } catch { /* fall through */ }
+    }
+    // localStorage fallback
     actions.addDiscountCode({ ...form, code });
-    addToast(`Created code ${code}`, 'success');
+    addToast(`Created code ${code} (local only — no D1 token)`, 'info');
     setForm({ code: '', type: 'percent', value: 10, minCart: 0, maxUses: 100, expiresAt: '', notes: '' });
     setShowAdd(false);
   };
 
-  const remove = (id, code) => {
-    if (window.confirm(`Delete code ${code}?`)) {
-      actions.removeDiscountCode(id);
-      addToast('Code deleted', 'info');
+  const remove = async (id, code) => {
+    if (!window.confirm(`Delete code ${code}?`)) return;
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch(`/api/admin/promotions?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.ok) { addToast('Code deleted', 'info'); refresh(); return; }
+      } catch {}
     }
+    actions.removeDiscountCode(id);
+    addToast('Code deleted', 'info');
+  };
+
+  const toggleActive = async (id, currentlyActive) => {
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch('/api/admin/promotions', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ id, active: !currentlyActive }),
+        });
+        if (res.ok) { refresh(); return; }
+      } catch {}
+    }
+    actions.toggleDiscountActive(id);
   };
 
   const totalRedeemed = codes.reduce((s, c) => s + (c.usedCount || 0), 0);
@@ -5576,7 +5660,10 @@ function AdminPromotions() {
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Promotions</h1><div className="page-sub">{codes.length} codes · {activeCount} active · {totalRedeemed} redemptions</div></div>
+        <div>
+          <h1 className="page-title">Promotions</h1>
+          <div className="page-sub">{codes.length} codes · {activeCount} active · {totalRedeemed} redemptions {usingDB && <span style={{ color: 'var(--ok)', marginLeft: 8 }}>· D1 ✓</span>}{!usingDB && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· local only</span>}</div>
+        </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ New code'}</button>
       </div>
 
@@ -5627,7 +5714,7 @@ function AdminPromotions() {
                       <span className="badge badge-warn">Used up</span>
                     }</td>
                     <td style={{textAlign:'right'}}>
-                      <button className="btn btn-small btn-ghost" onClick={() => actions.toggleDiscountActive(c.id)}>{c.active ? 'Disable' : 'Enable'}</button>
+                      <button className="btn btn-small btn-ghost" onClick={() => toggleActive(c.id, c.active)}>{c.active ? 'Disable' : 'Enable'}</button>
                       <button className="btn btn-small btn-ghost" style={{ marginLeft: 6, color: 'var(--alert)' }} onClick={() => remove(c.id, c.code)}>Delete</button>
                     </td>
                   </tr>
@@ -5644,15 +5731,58 @@ function AdminPromotions() {
 // ============ ADMIN FEATURED — homepage product curation ============
 function AdminFeatured() {
   const { state, actions, addToast } = useApp();
-  const featured = state.featuredProductIds || [];
-  const liveProducts = state.products.filter(p => p.listed && p.approved);
+  const [apiFeatured, setApiFeatured] = useState(null); // null = haven't fetched / API unavailable
   const [search, setSearch] = useState('');
+
+  // Source of truth: API list when available, otherwise localStorage state
+  const featured = apiFeatured !== null
+    ? apiFeatured.map(f => f.id)
+    : (state.featuredProductIds || []);
+  const usingDB = apiFeatured !== null;
+
+  const liveProducts = state.products.filter(p => p.listed && p.approved);
   const filtered = liveProducts.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
+
+  const getToken = () => { try { return localStorage.getItem('styli-admin-token'); } catch { return null; } };
+
+  const refresh = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/admin/featured', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setApiFeatured(data.featured || []); }
+    } catch {}
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const toggleFeatured = async (productId, currentlyFeatured) => {
+    const token = getToken();
+    if (token) {
+      try {
+        const res = await fetch('/api/admin/featured', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ productId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          addToast(data.action === 'added' ? 'Featured on homepage (saved to D1)' : 'Unfeatured (saved to D1)', 'success');
+          refresh();
+          return;
+        }
+      } catch {}
+    }
+    actions.toggleFeaturedProduct(productId);
+    addToast(currentlyFeatured ? 'Unfeatured (local only)' : 'Featured on homepage (local only)', 'info');
+  };
 
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Featured products</h1><div className="page-sub">{featured.length} products pinned to homepage trending grid · drag-style ordering coming soon</div></div>
+        <div>
+          <h1 className="page-title">Featured products</h1>
+          <div className="page-sub">{featured.length} products pinned to homepage trending grid · drag-style ordering coming soon {usingDB && <span style={{ color: 'var(--ok)', marginLeft: 8 }}>· D1 ✓</span>}{!usingDB && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· local only</span>}</div>
+        </div>
       </div>
       <div className="filter-bar" style={{ marginBottom: 16 }}>
         <input className="search-field" placeholder="Search products to feature..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%' }} />
@@ -5673,7 +5803,7 @@ function AdminFeatured() {
                   <td className="cell-primary">{formatINR(p.price)}</td>
                   <td>{(p.rating || 0).toFixed(1)} ★ ({p.reviewCount || 0})</td>
                   <td style={{textAlign:'right'}}>
-                    <button className={`btn btn-small ${isFeatured ? 'btn-primary' : 'btn-ghost'}`} onClick={() => { actions.toggleFeaturedProduct(p.id); addToast(isFeatured ? 'Unfeatured' : 'Featured on homepage', 'success'); }}>{isFeatured ? '★ Featured' : '☆ Feature'}</button>
+                    <button className={`btn btn-small ${isFeatured ? 'btn-primary' : 'btn-ghost'}`} onClick={() => toggleFeatured(p.id, isFeatured)}>{isFeatured ? '★ Featured' : '☆ Feature'}</button>
                   </td>
                 </tr>
               );
@@ -5685,39 +5815,102 @@ function AdminFeatured() {
   );
 }
 
-// ============ ADMIN CATEGORIES — taxonomy management ============
+// ============ ADMIN CATEGORIES — taxonomy management (D1-backed with localStorage fallback) ============
 function AdminCategories() {
   const { state, actions, addToast } = useApp();
-  const cats = (state.categories || []).slice().sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99));
+  const [apiCats, setApiCats] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', displayName: '' });
 
-  const submit = () => {
+  const cats = (apiCats !== null ? apiCats : (state.categories || []))
+    .slice().sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99));
+  const usingDB = apiCats !== null;
+
+  const getToken = () => { try { return localStorage.getItem('styli-admin-token'); } catch { return null; } };
+
+  const refresh = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/admin/categories', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setApiCats(data.categories || []); }
+    } catch {}
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const submit = async () => {
     const name = form.name.trim();
     if (!name) { addToast('Category name required', 'warn'); return; }
     if (cats.some(c => c.name.toLowerCase() === name.toLowerCase())) { addToast('Category already exists', 'warn'); return; }
+
+    const token = getToken();
+    if (token) {
+      try {
+        const res = await fetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ name, displayName: form.displayName || name }),
+        });
+        if (res.ok) {
+          addToast(`Added ${name} (saved to D1)`, 'success');
+          setForm({ name: '', displayName: '' });
+          setShowAdd(false);
+          refresh();
+          return;
+        } else if (res.status === 409) { addToast('Category already exists', 'warn'); return; }
+      } catch {}
+    }
     actions.addCategory({ name, displayName: form.displayName || name });
-    addToast(`Added ${name}`, 'success');
+    addToast(`Added ${name} (local only)`, 'info');
     setForm({ name: '', displayName: '' });
     setShowAdd(false);
   };
 
-  const remove = (id, name) => {
+  const remove = async (id, name) => {
     const productCount = state.products.filter(p => p.category === name).length;
     if (productCount > 0) {
       addToast(`Cannot delete — ${productCount} products use this category`, 'warn');
       return;
     }
-    if (window.confirm(`Delete category "${name}"?`)) {
-      actions.removeCategory(id);
-      addToast('Category deleted', 'info');
+    if (!window.confirm(`Delete category "${name}"?`)) return;
+
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch(`/api/admin/categories?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.ok) { addToast('Category deleted', 'info'); refresh(); return; }
+        if (res.status === 409) { const data = await res.json().catch(() => ({})); addToast(data.error || 'Cannot delete', 'warn'); return; }
+      } catch {}
     }
+    actions.removeCategory(id);
+    addToast('Category deleted', 'info');
+  };
+
+  const toggleHidden = async (id, currentlyHidden) => {
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch('/api/admin/categories', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ id, hidden: !currentlyHidden }),
+        });
+        if (res.ok) { refresh(); return; }
+      } catch {}
+    }
+    actions.updateCategory(id, { hidden: !currentlyHidden });
   };
 
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Categories</h1><div className="page-sub">{cats.length} categories · vendors pick from this list when listing products</div></div>
+        <div>
+          <h1 className="page-title">Categories</h1>
+          <div className="page-sub">{cats.length} categories · vendors pick from this list when listing products {usingDB && <span style={{ color: 'var(--ok)', marginLeft: 8 }}>· D1 ✓</span>}{!usingDB && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· local only</span>}</div>
+        </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ Add category'}</button>
       </div>
 
@@ -5745,7 +5938,7 @@ function AdminCategories() {
                   <td>{productCount}</td>
                   <td>{c.hidden ? <span className="badge badge-neutral">Hidden</span> : <span className="badge badge-ok">Live</span>}</td>
                   <td style={{textAlign:'right'}}>
-                    <button className="btn btn-small btn-ghost" onClick={() => actions.updateCategory(c.id, { hidden: !c.hidden })}>{c.hidden ? 'Show' : 'Hide'}</button>
+                    <button className="btn btn-small btn-ghost" onClick={() => toggleHidden(c.id, c.hidden)}>{c.hidden ? 'Show' : 'Hide'}</button>
                     <button className="btn btn-small btn-ghost" style={{ marginLeft: 6, color: 'var(--alert)' }} onClick={() => remove(c.id, c.name)}>Delete</button>
                   </td>
                 </tr>
