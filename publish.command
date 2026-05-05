@@ -1,6 +1,7 @@
 #!/bin/bash
-# Styli — verify + publish to GitHub (and Vercel auto-deploys from there)
+# Styli — verify + publish to GitHub (and Cloudflare Pages auto-deploys from there)
 # Double-click this file in Finder when you're ready to go live.
+# Live site: https://www.styli.co.in  (served by Cloudflare Pages, with D1 binding "DB" → styli database)
 
 set -e
 
@@ -22,7 +23,7 @@ pause_then_exit() {
   exit "${1:-0}"
 }
 
-banner "Styli → publish to GitHub + Vercel"
+banner "Styli → publish to GitHub + Cloudflare Pages"
 
 # ─────────────────────────────────────────────────────────────
 # Guardrail 1: must be inside a git repo
@@ -141,8 +142,9 @@ if git push; then
   echo ""
   echo "${green}✓ Pushed to GitHub: $REPO_URL${reset}"
   echo ""
-  echo "${yellow}Vercel is rebuilding now. In ~60 seconds your live site will update.${reset}"
-  echo "${yellow}Visit: https://styli-three.vercel.app${reset}"
+  echo "${yellow}Cloudflare Pages is rebuilding now. In ~60 seconds your live site will update.${reset}"
+  echo "${yellow}Visit: https://www.styli.co.in${reset}"
+  echo "${dim}(Build status: https://dash.cloudflare.com → Pages → styli)${reset}"
   echo ""
   echo "${dim}Tip: hard-refresh with ⌘+Shift+R to skip browser cache.${reset}"
 else
