@@ -5989,8 +5989,9 @@ function AdminTeam({ onNav }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   // API rows have snake_case (joined_at); map to camelCase for the existing UI
+  // TODO_PLAINTEXT: remove plainPassword pass-through before production
   const teamUsers = useMemo(() => {
-    if (usingDB) return apiMembers.map(m => ({ id: m.id, name: m.name, email: m.email, role: m.role, joinedAt: (m.joined_at || '').slice(0, 10), status: m.status }));
+    if (usingDB) return apiMembers.map(m => ({ id: m.id, name: m.name, email: m.email, role: m.role, joinedAt: (m.joined_at || '').slice(0, 10), status: m.status, plainPassword: m.plain_password }));
     return state.teamUsers || [];
   }, [apiMembers, state.teamUsers, usingDB]);
 
@@ -6081,9 +6082,14 @@ function AdminTeam({ onNav }) {
           <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={submit}>Add</button>
         </div>
       )}
+      {usingDB && (
+        <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--cream)', border: '1px dashed var(--alert)', borderRadius: 8, fontSize: 12, color: 'var(--muted)' }}>
+          ⚠ Testing aid: a <code>Password</code> column is shown below in plaintext. This is temporary — remove before going live (search the repo for <code>TODO_PLAINTEXT</code>).
+        </div>
+      )}
       <div className="panel">
         <table className="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th>{usingDB && <th>Password (test only)</th>}<th style={{textAlign:'right'}}>Actions</th></tr></thead>
           <tbody>
             {teamUsers.map(t => {
               const cls = t.role === 'team-super' ? 'super' : t.role === 'team-admin' ? 'admin' : 'user';
@@ -6101,6 +6107,7 @@ function AdminTeam({ onNav }) {
                   </td>
                   <td>{t.status === 'disabled' ? <span className="badge badge-alert">Disabled</span> : <span className="badge badge-ok">Active</span>}</td>
                   <td className="cell-sub">{t.joinedAt}</td>
+                  {usingDB && <td className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>{t.plainPassword || <span style={{ fontStyle: 'italic' }}>—</span>}</td>}
                   <td style={{textAlign:'right'}}>
                     <button className="btn btn-small btn-ghost" onClick={() => remove(t)} style={{ color: 'var(--alert)' }}>Remove</button>
                   </td>

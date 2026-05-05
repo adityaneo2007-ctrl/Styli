@@ -5,6 +5,14 @@
 // DELETE /api/admin/team?id=tm-XXX         — remove member (refuses if it's the last super)
 //
 // Auth: 'view.team' for GET, 'edit.team' for mutations (super-only by default).
+//
+// TODO REMOVE BEFORE PRODUCTION — temporary plaintext password storage:
+// We mirror the password into team_members.plain_password (column added 2026-05-05)
+// to make demo/testing easier. This is a deliberate security antipattern and
+// MUST be reverted before going live to real users:
+//   1) ALTER TABLE team_members DROP COLUMN plain_password;
+//   2) Remove the `plain_password` lines marked TODO_PLAINTEXT below.
+//   3) Stop returning the column from GET.
 
 import { json, error, preflight, requireDB, parseJSON, isEmail, clean, genId, now } from '../../_lib/db.js';
 import { getSession, teamCan, hashPassword } from '../../_lib/auth.js';
@@ -26,7 +34,8 @@ export async function onRequestGet(context) {
   const auth = await requireTeam(context.env, context.request, 'view.team');
   if (auth.err) return auth.err;
   const { results } = await context.env.DB.prepare(
-    `SELECT id, name, email, role, status, joined_at, last_active_at, invited_by
+    // TODO_PLAINTEXT: remove plain_password from this SELECT before production
+    `SELECT id, name, email, role, status, joined_at, last_active_at, invited_by, plain_password
      FROM team_members ORDER BY joined_at DESC`
   ).all();
   return json({ members: results || [] });
@@ -53,9 +62,10 @@ export async function onRequestPost(context) {
 
   try {
     await context.env.DB.prepare(
-      `INSERT INTO team_members (id, name, email, password_hash, role, status, joined_at, invited_by)
-       VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`
-    ).bind(id, name, email, passwordHash, role, t, auth.session.userId).run();
+      // TODO_PLAINTEXT: remove plain_password from this INSERT before production
+      `INSERT INTO team_members (id, name, email, password_hash, role, status, joined_at, invited_by, plain_password)
+       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)`
+    ).bind(id, name, email, passwordHash, role, t, auth.session.userId, password).run();
 
     // Audit
     await context.env.DB.prepare(
@@ -117,6 +127,9 @@ export async function onRequestPatch(context) {
     if (String(body.password).length < 6) return error('Password must be at least 6 characters', 400);
     fields.push('password_hash = ?');
     binds.push(await hashPassword(String(body.password)));
+    // TODO_PLAINTEXT: remove plain_password mirror before production
+    fields.push('plain_password = ?');
+    binds.push(String(body.password));
   }
 
   if (fields.length === 0) return error('No fields to update', 400);
