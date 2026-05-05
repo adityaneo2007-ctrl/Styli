@@ -5151,29 +5151,157 @@ function AdminApplications() {
   );
 }
 
+// ============ ADMIN VENDORS — vendor master, D1-backed with localStorage fallback ============
 function AdminVendors() {
-  const { state } = useApp();
+  const { state, addToast } = useApp();
+  const [apiVendors, setApiVendors] = useState(null);
+  const [search, setSearch] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: '', email: '', password: '', type: 'small', city: '', gst: '', phone: '', status: 'approved', score: 90 });
+
+  const getToken = () => { try { return localStorage.getItem('styli-admin-token'); } catch { return null; } };
+  const usingDB = apiVendors !== null;
+
+  const refresh = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/admin/vendors?list=active', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setApiVendors(data.vendors || []); }
+    } catch {}
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const vendors = useMemo(() => {
+    let list;
+    if (usingDB) {
+      list = apiVendors.map(v => ({
+        id: v.id, name: v.business_name, email: v.email, type: v.type, city: v.city, gst: v.gst, phone: v.phone,
+        status: v.status, score: v.score,
+        products: v.product_count || 0, orders: v.order_count || 0, revenue: v.revenue || 0,
+      }));
+    } else {
+      list = state.vendors.map(v => {
+        const vp = state.products.filter(p => p.vendorId === v.id).length;
+        const vo = state.orders.filter(o => o.vendorId === v.id);
+        const rev = vo.reduce((s, o) => s + o.price * o.qty, 0);
+        return { ...v, products: vp, orders: vo.length, revenue: rev };
+      });
+    }
+    return list.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()) || (v.email || '').toLowerCase().includes(search.toLowerCase()));
+  }, [apiVendors, state.vendors, state.products, state.orders, search, usingDB]);
+
+  const openAdd = () => { setEditing(null); setForm({ name: '', email: '', password: '', type: 'small', city: '', gst: '', phone: '', status: 'approved', score: 90 }); setShowAdd(true); };
+  const openEdit = (v) => { setEditing(v); setForm({ name: v.name, email: v.email || '', password: '', type: v.type || 'small', city: v.city || '', gst: v.gst || '', phone: v.phone || '', status: v.status || 'approved', score: v.score ?? 90 }); setShowAdd(true); };
+
+  const submit = async () => {
+    if (!form.name.trim() || !form.email.trim()) { addToast('Business name and email required', 'warn'); return; }
+    const token = getToken();
+    if (token) {
+      try {
+        const isCreate = !editing;
+        const body = isCreate
+          ? { create: 1, name: form.name, email: form.email, password: form.password, type: form.type, city: form.city, gst: form.gst, phone: form.phone }
+          : { id: editing.id, businessName: form.name, email: form.email, type: form.type, city: form.city, gst: form.gst, phone: form.phone, status: form.status, score: form.score };
+        if (!isCreate && form.password) body.password = form.password;
+        const res = await fetch('/api/admin/vendors', {
+          method: isCreate ? 'POST' : 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) { addToast(isCreate ? 'Vendor created (saved to D1)' : 'Vendor updated (saved to D1)', 'success'); setShowAdd(false); setEditing(null); refresh(); return; }
+        if (res.status === 409) { const d = await res.json().catch(() => ({})); addToast(d.error || 'Already exists', 'warn'); return; }
+        if (res.status === 400) { const d = await res.json().catch(() => ({})); addToast(d.error || 'Invalid data', 'warn'); return; }
+      } catch {}
+    }
+    addToast('Cannot save — D1 unreachable', 'warn');
+  };
+
+  const remove = async (v) => {
+    if (!window.confirm(`Delete vendor "${v.name}"? Their products will also be removed. This cannot be undone.`)) return;
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch(`/api/admin/vendors?id=${encodeURIComponent(v.id)}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) { addToast('Vendor deleted', 'info'); refresh(); return; }
+        if (res.status === 403) { addToast('Forbidden — needs Superadmin', 'warn'); return; }
+      } catch {}
+    }
+    addToast('Cannot delete — D1 unreachable', 'warn');
+  };
+
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">All vendors</h1><div className="page-sub">{state.vendors.length} total on the platform</div></div></div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">All vendors</h1>
+          <div className="page-sub">{vendors.length} total on the platform {usingDB && <span style={{ color: 'var(--ok)', marginLeft: 8 }}>· D1 ✓</span>}{!usingDB && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· local only</span>}</div>
+        </div>
+        <button className="btn btn-primary" onClick={openAdd}>+ New vendor</button>
+      </div>
+
+      {showAdd && (
+        <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 12 }}>{editing ? `Edit ${editing.name}` : 'Onboard a vendor directly'}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="field"><label className="field-label">Business name</label><input className="field-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="field"><label className="field-label">Email</label><input className="field-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="field"><label className="field-label">{editing ? 'New password (leave blank to keep)' : 'Password (≥ 6 chars)'}</label><input className="field-input" type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
+            <div className="field"><label className="field-label">Phone</label><input className="field-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="field"><label className="field-label">Type</label>
+              <select className="field-input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                <option value="small">Boutique / Small</option>
+                <option value="medium">Brand / Medium</option>
+              </select>
+            </div>
+            <div className="field"><label className="field-label">City</label><input className="field-input" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
+            <div className="field"><label className="field-label">GST number</label><input className="field-input" value={form.gst} onChange={e => setForm({ ...form, gst: e.target.value.toUpperCase() })} /></div>
+            {editing && (
+              <>
+                <div className="field"><label className="field-label">Status</label>
+                  <select className="field-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <div className="field"><label className="field-label">Score (0–100)</label><input className="field-input" type="number" min="0" max="100" value={form.score} onChange={e => setForm({ ...form, score: parseInt(e.target.value, 10) || 0 })} /></div>
+              </>
+            )}
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" onClick={submit}>{editing ? 'Save changes' : 'Create vendor'}</button>
+            <button className="btn btn-ghost" onClick={() => { setShowAdd(false); setEditing(null); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="filter-bar" style={{ marginBottom: 16 }}>
+        <input className="search-field" placeholder="Search by name, email…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%' }} />
+      </div>
+
       <div className="panel">
         <table className="table">
-          <thead><tr><th>Vendor</th><th>Type</th><th>City</th><th>Status</th><th>Products</th><th>Orders</th><th>Revenue</th></tr></thead>
+          <thead><tr><th>Vendor</th><th>Type</th><th>City</th><th>Status</th><th>Score</th><th>Products</th><th>Orders</th><th>Revenue</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
           <tbody>
-            {state.vendors.map(v => {
-              const vp = state.products.filter(p => p.vendorId === v.id).length;
-              const vo = state.orders.filter(o => o.vendorId === v.id);
-              const rev = vo.reduce((s, o) => s + o.price * o.qty, 0);
-              return <tr key={v.id}>
+            {vendors.map(v => (
+              <tr key={v.id}>
                 <td><div className="cell-primary">{v.name}</div><div className="cell-sub">{v.email}</div></td>
                 <td>{v.type === 'small' ? 'Boutique' : 'Brand'}</td>
                 <td>{v.city}</td>
-                <td>{v.status === 'approved' ? <span className="badge badge-ok">Approved</span> : v.status === 'pending' ? <span className="badge badge-warn">Pending</span> : <span className="badge badge-alert">Rejected</span>}</td>
-                <td>{vp}</td>
-                <td>{vo.length}</td>
-                <td className="cell-primary">{formatINR(rev)}</td>
-              </tr>;
-            })}
+                <td>{v.status === 'approved' ? <span className="badge badge-ok">Approved</span> : v.status === 'pending' ? <span className="badge badge-warn">Pending</span> : v.status === 'suspended' ? <span className="badge badge-warn">Suspended</span> : <span className="badge badge-alert">Rejected</span>}</td>
+                <td>{v.score ?? '—'}</td>
+                <td>{v.products}</td>
+                <td>{v.orders}</td>
+                <td className="cell-primary">{formatINR(v.revenue)}</td>
+                <td style={{textAlign:'right'}}>
+                  <button className="btn btn-small btn-ghost" onClick={() => openEdit(v)}>Edit</button>
+                  <button className="btn btn-small btn-ghost" style={{ marginLeft: 6, color: 'var(--alert)' }} onClick={() => remove(v)}>Delete</button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -5304,46 +5432,123 @@ function AdminOrders() {
 
 // ============ ADMIN — NEW VIEWS (Customers / Newsletter / Returns / Reviews / Team / Roles / Settings / Audit) ============
 
+// ============ ADMIN CUSTOMERS — buyer master, D1-backed with localStorage fallback ============
 function AdminCustomers() {
   const { state, addToast } = useApp();
+  const [apiBuyers, setApiBuyers] = useState(null);
   const [search, setSearch] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null); // buyer object being edited
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', city: '' });
 
-  // Build customer rollup from orders + buyers
-  const customerMap = new Map();
-  state.orders.forEach(o => {
-    if (!customerMap.has(o.buyerId)) {
-      customerMap.set(o.buyerId, { id: o.buyerId, name: o.buyer, city: o.city, orders: 0, gmv: 0, lastOrder: null });
-    }
-    const c = customerMap.get(o.buyerId);
-    c.orders += 1;
-    c.gmv += o.price * o.qty;
-    if (!c.lastOrder || new Date(o.placed) > new Date(c.lastOrder)) c.lastOrder = o.placed;
-  });
-  // Also include registered buyers from state.buyers (may not have orders yet)
-  (state.buyers || []).forEach(b => {
-    if (!customerMap.has(b.id)) {
-      customerMap.set(b.id, { id: b.id, name: b.name || b.email, city: b.city || '—', orders: 0, gmv: 0, lastOrder: null, email: b.email });
-    } else {
-      customerMap.get(b.id).email = b.email;
-    }
-  });
+  const getToken = () => { try { return localStorage.getItem('styli-admin-token'); } catch { return null; } };
+  const usingDB = apiBuyers !== null;
 
-  const customers = Array.from(customerMap.values())
-    .filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.email || '').toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => b.gmv - a.gmv);
+  const refresh = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const url = '/api/admin/buyers' + (search ? `?search=${encodeURIComponent(search)}` : '');
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setApiBuyers(data.buyers || []); }
+    } catch {}
+  }, [search]);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Source list: API rows when available, else built from local state + orders
+  const customers = useMemo(() => {
+    if (usingDB) {
+      return apiBuyers
+        .filter(b => !search || (b.name || '').toLowerCase().includes(search.toLowerCase()) || (b.email || '').toLowerCase().includes(search.toLowerCase()))
+        .map(b => ({ id: b.id, name: b.name, email: b.email, city: b.city || '—', phone: b.phone, orders: b.order_count || 0, gmv: b.total_spent || 0, lastOrder: b.last_login_at, registered: true }));
+    }
+    // Fallback: build from local orders + buyers
+    const map = new Map();
+    state.orders.forEach(o => {
+      if (!map.has(o.buyerId)) map.set(o.buyerId, { id: o.buyerId, name: o.buyer, city: o.city, orders: 0, gmv: 0, lastOrder: null });
+      const c = map.get(o.buyerId); c.orders += 1; c.gmv += o.price * o.qty;
+      if (!c.lastOrder || new Date(o.placed) > new Date(c.lastOrder)) c.lastOrder = o.placed;
+    });
+    (state.buyers || []).forEach(b => {
+      if (!map.has(b.id)) map.set(b.id, { id: b.id, name: b.name || b.email, email: b.email, city: b.city || '—', orders: 0, gmv: 0, lastOrder: null });
+      else map.get(b.id).email = b.email;
+    });
+    return Array.from(map.values())
+      .filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.email || '').toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => b.gmv - a.gmv);
+  }, [apiBuyers, state.orders, state.buyers, search, usingDB]);
 
   const totalGmv = customers.reduce((s, c) => s + c.gmv, 0);
+
+  const openAdd = () => { setEditing(null); setForm({ name: '', email: '', password: '', phone: '', city: '' }); setShowAdd(true); };
+  const openEdit = (c) => { setEditing(c); setForm({ name: c.name || '', email: c.email || '', password: '', phone: c.phone || '', city: c.city === '—' ? '' : (c.city || '') }); setShowAdd(true); };
+
+  const submit = async () => {
+    if (!form.name.trim() || !form.email.trim()) { addToast('Name and email required', 'warn'); return; }
+    if (!editing && (!form.password || form.password.length < 6)) { addToast('Password must be at least 6 characters', 'warn'); return; }
+    const token = getToken();
+    if (token) {
+      try {
+        const body = editing ? { id: editing.id, name: form.name, email: form.email, phone: form.phone, city: form.city } : form;
+        if (editing && form.password) body.password = form.password;
+        const res = await fetch('/api/admin/buyers', {
+          method: editing ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) { addToast(editing ? 'Buyer updated (saved to D1)' : 'Buyer created (saved to D1)', 'success'); setShowAdd(false); setEditing(null); refresh(); return; }
+        if (res.status === 409) { const d = await res.json().catch(() => ({})); addToast(d.error || 'Already exists', 'warn'); return; }
+      } catch {}
+    }
+    addToast('Cannot save — D1 unreachable. Log out and back in to refresh your token.', 'warn');
+  };
+
+  const remove = async (c) => {
+    if (!window.confirm(`Delete buyer "${c.name}"? Their orders are kept but the account is removed. This cannot be undone.`)) return;
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch(`/api/admin/buyers?id=${encodeURIComponent(c.id)}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) { addToast('Buyer deleted', 'info'); refresh(); return; }
+      } catch {}
+    }
+    addToast('Cannot delete — D1 unreachable', 'warn');
+  };
 
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Customers</h1><div className="page-sub">{customers.length} customers · {formatINR(totalGmv)} lifetime GMV</div></div>
-        <button className="btn btn-secondary" onClick={() => {
-          const rows = customers.map(c => [c.id, c.name || '', c.email || '', c.city || '', c.orders, c.gmv, c.lastOrder || '']);
-          downloadCSV('styli-customers.csv', ['Customer ID', 'Name', 'Email', 'City', 'Orders', 'Lifetime GMV (paise)', 'Last order'], rows);
-          addToast(`Exported ${rows.length} customers`, 'success');
-        }}>Export CSV</button>
+        <div>
+          <h1 className="page-title">Customers</h1>
+          <div className="page-sub">{customers.length} customers · {formatINR(totalGmv)} lifetime GMV {usingDB && <span style={{ color: 'var(--ok)', marginLeft: 8 }}>· D1 ✓</span>}{!usingDB && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· local only</span>}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => {
+            const rows = customers.map(c => [c.id, c.name || '', c.email || '', c.city || '', c.orders, c.gmv, c.lastOrder || '']);
+            downloadCSV('styli-customers.csv', ['Customer ID', 'Name', 'Email', 'City', 'Orders', 'Lifetime GMV (paise)', 'Last order'], rows);
+            addToast(`Exported ${rows.length} customers`, 'success');
+          }}>Export CSV</button>
+          <button className="btn btn-primary" onClick={openAdd}>+ New buyer</button>
+        </div>
       </div>
+
+      {showAdd && (
+        <div className="panel" style={{ padding: 20, marginBottom: 16 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 500, marginBottom: 12 }}>{editing ? `Edit ${editing.name}` : 'Create buyer account'}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="field"><label className="field-label">Name</label><input className="field-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="field"><label className="field-label">Email</label><input className="field-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="field"><label className="field-label">{editing ? 'New password (leave blank to keep)' : 'Password (≥ 6 chars)'}</label><input className="field-input" type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
+            <div className="field"><label className="field-label">Phone</label><input className="field-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="field"><label className="field-label">City</label><input className="field-input" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" onClick={submit}>{editing ? 'Save changes' : 'Create buyer'}</button>
+            <button className="btn btn-ghost" onClick={() => { setShowAdd(false); setEditing(null); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       <div className="filter-bar" style={{ marginBottom: 16 }}>
         <input className="search-field" placeholder="Search by name, email…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%' }} />
       </div>
@@ -5360,7 +5565,8 @@ function AdminCustomers() {
                 <td className="cell-primary">{formatINR(c.gmv)}</td>
                 <td className="cell-sub">{c.lastOrder || 'No orders'}</td>
                 <td style={{textAlign:'right'}}>
-                  <button className="btn btn-small btn-ghost" onClick={() => addToast(`Email: ${c.email || '—'}`, 'info')}>Contact</button>
+                  <button className="btn btn-small btn-ghost" onClick={() => openEdit(c)}>Edit</button>
+                  <button className="btn btn-small btn-ghost" style={{ marginLeft: 6, color: 'var(--alert)' }} onClick={() => remove(c)}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -5513,22 +5719,99 @@ function AdminReviews() {
   );
 }
 
+// ============ ADMIN TEAM — D1-backed with localStorage fallback ============
 function AdminTeam({ onNav }) {
   const { state, actions, addToast } = useApp();
-  const teamUsers = state.teamUsers || [];
+  const [apiMembers, setApiMembers] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'team-user' });
-  const submit = () => {
+
+  const getToken = () => { try { return localStorage.getItem('styli-admin-token'); } catch { return null; } };
+  const usingDB = apiMembers !== null;
+
+  const refresh = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch('/api/admin/team', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setApiMembers(data.members || []); }
+    } catch {}
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // API rows have snake_case (joined_at); map to camelCase for the existing UI
+  const teamUsers = useMemo(() => {
+    if (usingDB) return apiMembers.map(m => ({ id: m.id, name: m.name, email: m.email, role: m.role, joinedAt: (m.joined_at || '').slice(0, 10), status: m.status }));
+    return state.teamUsers || [];
+  }, [apiMembers, state.teamUsers, usingDB]);
+
+  const submit = async () => {
     if (!form.name || !form.email || !form.password) { addToast('All fields required', 'warn'); return; }
+    if (form.password.length < 6) { addToast('Password must be at least 6 characters', 'warn'); return; }
+    const token = getToken();
+    if (token) {
+      try {
+        const res = await fetch('/api/admin/team', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(form),
+        });
+        if (res.ok) {
+          addToast(`Added ${form.name} (saved to D1)`, 'success');
+          setForm({ name: '', email: '', password: '', role: 'team-user' });
+          setShowAdd(false);
+          refresh();
+          return;
+        }
+        if (res.status === 409) { addToast('A team member with this email already exists', 'warn'); return; }
+        if (res.status === 403) { addToast('Forbidden — needs Superadmin', 'warn'); return; }
+      } catch {}
+    }
+    // Fallback
     actions.addTeamMember(form);
-    addToast(`Added ${form.name}`, 'success');
+    addToast(`Added ${form.name} (local only)`, 'info');
     setForm({ name: '', email: '', password: '', role: 'team-user' });
     setShowAdd(false);
   };
+
+  const updateRole = async (id, role, name) => {
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch('/api/admin/team', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ id, role }),
+        });
+        if (res.ok) { addToast(`${name} → ${TEAM_ROLE_LABEL[role]}`, 'success'); refresh(); return; }
+        if (res.status === 409) { const d = await res.json().catch(() => ({})); addToast(d.error || 'Cannot change role', 'warn'); return; }
+      } catch {}
+    }
+    actions.updateTeamMemberRole(id, role);
+    addToast(`${name} → ${TEAM_ROLE_LABEL[role]} (local only)`, 'info');
+  };
+
+  const remove = async (t) => {
+    if (!window.confirm(`Remove ${t.name}?`)) return;
+    const token = getToken();
+    if (token && usingDB) {
+      try {
+        const res = await fetch(`/api/admin/team?id=${encodeURIComponent(t.id)}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) { addToast('Removed', 'info'); refresh(); return; }
+        if (res.status === 409) { const d = await res.json().catch(() => ({})); addToast(d.error || 'Cannot remove', 'warn'); return; }
+      } catch {}
+    }
+    actions.removeTeamMember(t.id);
+    addToast('Removed (local only)', 'info');
+  };
+
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Team members</h1><div className="page-sub">{teamUsers.length} people on the team · roles control what they can do</div></div>
+        <div>
+          <h1 className="page-title">Team members</h1>
+          <div className="page-sub">{teamUsers.length} people on the team · roles control what they can do {usingDB && <span style={{ color: 'var(--ok)', marginLeft: 8 }}>· D1 ✓</span>}{!usingDB && <span style={{ color: 'var(--muted)', marginLeft: 8 }}>· local only</span>}</div>
+        </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ Add member'}</button>
       </div>
       {showAdd && (
@@ -5537,7 +5820,7 @@ function AdminTeam({ onNav }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
             <div className="field"><label className="field-label">Name</label><input className="field-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             <div className="field"><label className="field-label">Email</label><input className="field-input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="field"><label className="field-label">Password</label><input className="field-input" type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="something memorable" /></div>
+            <div className="field"><label className="field-label">Password (≥ 6 chars)</label><input className="field-input" type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="something memorable" /></div>
             <div className="field"><label className="field-label">Role</label>
               <select className="field-input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
                 <option value="team-super">Superadmin</option>
@@ -5551,7 +5834,7 @@ function AdminTeam({ onNav }) {
       )}
       <div className="panel">
         <table className="table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th style={{textAlign:'right'}}>Actions</th></tr></thead>
           <tbody>
             {teamUsers.map(t => {
               const cls = t.role === 'team-super' ? 'super' : t.role === 'team-admin' ? 'admin' : 'user';
@@ -5560,16 +5843,17 @@ function AdminTeam({ onNav }) {
                   <td className="cell-primary">{t.name}</td>
                   <td>{t.email}</td>
                   <td>
-                    <select value={t.role} onChange={e => { actions.updateTeamMemberRole(t.id, e.target.value); addToast(`${t.name} → ${TEAM_ROLE_LABEL[e.target.value]}`, 'success'); }} style={{ padding: '4px 8px', fontSize: 12 }}>
+                    <select value={t.role} onChange={e => updateRole(t.id, e.target.value, t.name)} style={{ padding: '4px 8px', fontSize: 12 }}>
                       <option value="team-super">Superadmin</option>
                       <option value="team-admin">Admin</option>
                       <option value="team-user">User</option>
                     </select>
                     <span className={`role-pill ${cls}`} style={{ marginLeft: 8 }}>{TEAM_ROLE_LABEL[t.role]}</span>
                   </td>
+                  <td>{t.status === 'disabled' ? <span className="badge badge-alert">Disabled</span> : <span className="badge badge-ok">Active</span>}</td>
                   <td className="cell-sub">{t.joinedAt}</td>
                   <td style={{textAlign:'right'}}>
-                    <button className="btn btn-small btn-ghost" onClick={() => { if (window.confirm(`Remove ${t.name}?`)) { actions.removeTeamMember(t.id); addToast('Removed', 'info'); } }} style={{ color: 'var(--alert)' }}>Remove</button>
+                    <button className="btn btn-small btn-ghost" onClick={() => remove(t)} style={{ color: 'var(--alert)' }}>Remove</button>
                   </td>
                 </tr>
               );
