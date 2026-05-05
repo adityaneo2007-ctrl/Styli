@@ -5496,80 +5496,77 @@ function AdminProducts() {
     if (!price || price <= 0) { addToast('Price must be > 0 (in paise — e.g. 159900 means ₹1,599)', 'warn'); return; }
     if (sizes.length === 0) { addToast('At least one size', 'warn'); return; }
 
+    // All admin product mutations require D1 — no localStorage fallback for create/edit/delete.
     const token = getToken();
-    if (token) {
-      try {
-        let res;
-        if (editing) {
-          // Edit existing — use /api/products/:id
-          res = await fetch(`/api/products/${encodeURIComponent(editing.id)}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({
-              name: form.name, category: form.category, price, originalPrice,
-              sizes, stock, tags, description: form.description, imageUrl: form.imageUrl,
-              grad: form.grad, listed: form.listed, isNew: form.isNew, isExclusive: form.isExclusive,
-              approved: form.approved, vendorId: form.vendorId,
-            }),
-          });
-        } else {
-          // Create new — admin endpoint
-          res = await fetch('/api/admin/products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({
-              vendorId: form.vendorId, name: form.name, category: form.category,
-              price, originalPrice, sizes, stock, tags, description: form.description,
-              imageUrl: form.imageUrl, grad: form.grad, listed: form.listed,
-              isNew: form.isNew, isExclusive: form.isExclusive,
-            }),
-          });
-        }
-        if (res.ok) { addToast(editing ? 'Product updated (saved to D1)' : 'Product created (saved to D1)', 'success'); setShowModal(false); setEditing(null); refresh(); return; }
-        const d = await res.json().catch(() => ({}));
-        addToast(d.error || `Server error (${res.status})`, 'warn');
-        return;
-      } catch {}
+    if (!token) { addToast('Session expired — log out and log back in to continue.', 'warn'); return; }
+    try {
+      let res;
+      if (editing) {
+        res = await fetch(`/api/products/${encodeURIComponent(editing.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            name: form.name, category: form.category, price, originalPrice,
+            sizes, stock, tags, description: form.description, imageUrl: form.imageUrl,
+            grad: form.grad, listed: form.listed, isNew: form.isNew, isExclusive: form.isExclusive,
+            approved: form.approved, vendorId: form.vendorId,
+          }),
+        });
+      } else {
+        res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            vendorId: form.vendorId, name: form.name, category: form.category,
+            price, originalPrice, sizes, stock, tags, description: form.description,
+            imageUrl: form.imageUrl, grad: form.grad, listed: form.listed,
+            isNew: form.isNew, isExclusive: form.isExclusive,
+          }),
+        });
+      }
+      if (res.ok) { addToast(editing ? 'Product updated in D1' : 'Product created in D1', 'success'); setShowModal(false); setEditing(null); refresh(); return; }
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 401) { addToast('Session expired — log out and log back in.', 'warn'); return; }
+      if (res.status === 403) { addToast(d.error || 'Forbidden — check your role permissions.', 'warn'); return; }
+      addToast(d.error || `Could not save to D1 (HTTP ${res.status})`, 'error');
+    } catch {
+      addToast('Network error reaching D1 — change not saved.', 'error');
     }
-    // localStorage fallback
-    if (editing) actions.updateProduct(editing.id, { name: form.name, category: form.category, price, sizes, stock, tags, imageUrl: form.imageUrl, grad: form.grad, listed: form.listed });
-    else actions.addProduct({ vendorId: form.vendorId, name: form.name, category: form.category, price, sizes, stock, tags, imageUrl: form.imageUrl, grad: form.grad, listed: form.listed });
-    addToast(editing ? 'Product updated (local only)' : 'Product created (local only)', 'info');
-    setShowModal(false); setEditing(null);
   };
 
   const moderate = async (productId, action) => {
     const token = getToken();
-    if (token && usingDB) {
-      try {
-        const res = await fetch('/api/admin/products', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ productId, action }),
-        });
-        if (res.ok) { addToast(`Product ${action}ed`, 'success'); refresh(); return; }
-      } catch {}
+    if (!token) { addToast('Session expired — log out and log back in to continue.', 'warn'); return; }
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ productId, action }),
+      });
+      if (res.ok) { addToast(`Product ${action}ed`, 'success'); refresh(); return; }
+      const d = await res.json().catch(() => ({}));
+      addToast(d.error || `Could not ${action} (HTTP ${res.status})`, 'error');
+    } catch {
+      addToast(`Network error reaching D1 — could not ${action}.`, 'error');
     }
-    // Fallback
-    if (action === 'unlist' || action === 'relist') actions.toggleProductListed(productId);
-    addToast(`Product ${action}ed (local only)`, 'info');
   };
 
   const remove = async (p) => {
     if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
     const token = getToken();
-    if (token && usingDB) {
-      try {
-        const res = await fetch(`/api/admin/products?id=${encodeURIComponent(p.id)}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (res.ok) { addToast('Product deleted', 'info'); refresh(); return; }
-        if (res.status === 403) { addToast('Forbidden — needs Superadmin', 'warn'); return; }
-      } catch {}
+    if (!token) { addToast('Session expired — log out and log back in to continue.', 'warn'); return; }
+    try {
+      const res = await fetch(`/api/admin/products?id=${encodeURIComponent(p.id)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) { addToast('Product deleted from D1', 'info'); refresh(); return; }
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 403) { addToast('Forbidden — needs Superadmin (edit.products.delete)', 'warn'); return; }
+      addToast(d.error || `Could not delete (HTTP ${res.status})`, 'error');
+    } catch {
+      addToast('Network error reaching D1 — not deleted.', 'error');
     }
-    actions.deleteProduct(p.id);
-    addToast('Product deleted (local only)', 'info');
   };
 
   const liveCount = products.filter(p => p.listed && p.approved).length;
@@ -6052,64 +6049,73 @@ function AdminTeam({ onNav }) {
     return state.teamUsers || [];
   }, [apiMembers, state.teamUsers, usingDB]);
 
+  // All admin mutations require D1. No localStorage fallback for creates/edits/deletes —
+  // we never want a "ghost" team member sitting only in the admin's browser.
+  const requireToken = () => {
+    const t = getToken();
+    if (!t) {
+      addToast('Session expired — log out and log back in to continue.', 'warn');
+      return null;
+    }
+    return t;
+  };
+
   const submit = async () => {
     if (!form.name || !form.email || !form.password) { addToast('All fields required', 'warn'); return; }
     if (form.password.length < 6) { addToast('Password must be at least 6 characters', 'warn'); return; }
-    const token = getToken();
-    if (token) {
-      try {
-        const res = await fetch('/api/admin/team', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify(form),
-        });
-        if (res.ok) {
-          addToast(`Added ${form.name} (saved to D1)`, 'success');
-          setForm({ name: '', email: '', password: '', role: 'team-user' });
-          setShowAdd(false);
-          refresh();
-          return;
-        }
-        if (res.status === 409) { addToast('A team member with this email already exists', 'warn'); return; }
-        if (res.status === 403) { addToast('Forbidden — needs Superadmin', 'warn'); return; }
-      } catch {}
+    const token = requireToken(); if (!token) return;
+    try {
+      const res = await fetch('/api/admin/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        addToast(`Added ${form.name} to D1`, 'success');
+        setForm({ name: '', email: '', password: '', role: 'team-user' });
+        setShowAdd(false);
+        refresh();
+        return;
+      }
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 409) { addToast('A team member with this email already exists', 'warn'); return; }
+      if (res.status === 403) { addToast('Forbidden — only a Superadmin can add team members', 'warn'); return; }
+      if (res.status === 401) { addToast('Session expired — log out and log back in.', 'warn'); return; }
+      addToast(d.error || `Could not save to D1 (HTTP ${res.status})`, 'error');
+    } catch (e) {
+      addToast('Network error reaching D1 — check your connection and try again.', 'error');
     }
-    // Fallback
-    actions.addTeamMember(form);
-    addToast(`Added ${form.name} (local only)`, 'info');
-    setForm({ name: '', email: '', password: '', role: 'team-user' });
-    setShowAdd(false);
   };
 
   const updateRole = async (id, role, name) => {
-    const token = getToken();
-    if (token && usingDB) {
-      try {
-        const res = await fetch('/api/admin/team', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ id, role }),
-        });
-        if (res.ok) { addToast(`${name} → ${TEAM_ROLE_LABEL[role]}`, 'success'); refresh(); return; }
-        if (res.status === 409) { const d = await res.json().catch(() => ({})); addToast(d.error || 'Cannot change role', 'warn'); return; }
-      } catch {}
+    const token = requireToken(); if (!token) return;
+    try {
+      const res = await fetch('/api/admin/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ id, role }),
+      });
+      if (res.ok) { addToast(`${name} → ${TEAM_ROLE_LABEL[role]}`, 'success'); refresh(); return; }
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 409) { addToast(d.error || 'Cannot change role', 'warn'); return; }
+      addToast(d.error || `Could not save to D1 (HTTP ${res.status})`, 'error');
+    } catch {
+      addToast('Network error reaching D1 — change not saved.', 'error');
     }
-    actions.updateTeamMemberRole(id, role);
-    addToast(`${name} → ${TEAM_ROLE_LABEL[role]} (local only)`, 'info');
   };
 
   const remove = async (t) => {
     if (!window.confirm(`Remove ${t.name}?`)) return;
-    const token = getToken();
-    if (token && usingDB) {
-      try {
-        const res = await fetch(`/api/admin/team?id=${encodeURIComponent(t.id)}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) { addToast('Removed', 'info'); refresh(); return; }
-        if (res.status === 409) { const d = await res.json().catch(() => ({})); addToast(d.error || 'Cannot remove', 'warn'); return; }
-      } catch {}
+    const token = requireToken(); if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/team?id=${encodeURIComponent(t.id)}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) { addToast('Removed', 'info'); refresh(); return; }
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 409) { addToast(d.error || 'Cannot remove', 'warn'); return; }
+      addToast(d.error || `Could not delete from D1 (HTTP ${res.status})`, 'error');
+    } catch {
+      addToast('Network error reaching D1 — not removed.', 'error');
     }
-    actions.removeTeamMember(t.id);
-    addToast('Removed (local only)', 'info');
   };
 
   return (
